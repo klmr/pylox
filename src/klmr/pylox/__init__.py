@@ -1,5 +1,7 @@
 import sys
 
+from .ast import print_ast
+from .parser import parse
 from .log import LoxLogger
 from .scanner import scan
 
@@ -38,8 +40,10 @@ def run_prompt() -> None:
 def run(expr: str, logger: LoxLogger) -> None:
     logger.reset(expr)
     tokens = scan(expr, logger)
-    for token in tokens:
-        print(token)
+    tree = parse(tokens, logger)
+    if logger.had_error:
+        return
+    print(print_ast(tree))
 
 
 if __name__ == '__main__':
