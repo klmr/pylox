@@ -1,15 +1,18 @@
 from pathlib import Path
 import pytest
-from typing import List
+from typing import List, Tuple
 
 import klmr.pylox.scanner
-from klmr.pylox.token import TokenType
+from klmr.pylox.token import Token, TokenType
 import klmr.pylox.log
 
 
 class MockLogger(klmr.pylox.log.Logger):
-    def error(self, line: int, col: int, message: str) -> None:
+    def scan_error(self, position: Tuple[int, int], message: str) -> None:
         raise ValueError(message)
+
+    def parse_error(self, position: Tuple[int, int], token: Token, message: str) -> None:
+        pass
 
 
 def scan(source: str):

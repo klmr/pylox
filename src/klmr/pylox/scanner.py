@@ -1,11 +1,11 @@
 from typing import Iterable, Optional, Tuple
 
-from .log import Logger
+from .log import Logger, position_from_offset
 from .token import Token, TokenType as T
 
 
 def scan(source: str, logger: Logger) -> Iterable[Token]:
-    return _Scanner(source, logger).tokens()
+    return Scanner(source, logger).tokens()
 
 
 _KEYWORD_TOKENS = {
@@ -28,147 +28,138 @@ _KEYWORD_TOKENS = {
 }
 
 
-class _Scanner:
+class Scanner:
     def __init__(self, source: str, logger: Logger) -> None:
-        self.source = source
-        self.logger = logger
-        self.start = 0
-        self.pos = 0
+        self._source = source
+        self._logger = logger
+        self._start = 0
+        self._pos = 0
 
     def tokens(self) -> Iterable[Token]:
-        while not self.at_end():
-            self.start = self.pos
-            token = self.scan_token()
+        while not self._at_end():
+            self._start = self._pos
+            token = self._scan_token()
             if token:
                 yield token
-        yield Token(T.EOF, '', None, self.pos, 0)
+        yield Token(T.EOF, '', None, self._pos, 0)
 
-    def scan_token(self) -> Optional[Token]:
-        c = self.advance()
+    def _scan_token(self) -> Optional[Token]:
+        c = self._advance()
         if c == '(':
-            return self.token(T.LEFT_PAREN)
+            return self._token(T.LEFT_PAREN)
         elif c == ')':
-            return self.token(T.RIGHT_PAREN)
+            return self._token(T.RIGHT_PAREN)
         elif c == '{':
-            return self.token(T.LEFT_BRACE)
+            return self._token(T.LEFT_BRACE)
         elif c == '}':
-            return self.token(T.RIGHT_BRACE)
+            return self._token(T.RIGHT_BRACE)
         elif c == ',':
-            return self.token(T.COMMA)
+            return self._token(T.COMMA)
         elif c == '.':
-            return self.token(T.DOT)
+            return self._token(T.DOT)
         elif c == '-':
-            return self.token(T.MINUS)
+            return self._token(T.MINUS)
         elif c == '+':
-            return self.token(T.PLUS)
+            return self._token(T.PLUS)
         elif c == ';':
-            return self.token(T.SEMICOLON)
+            return self._token(T.SEMICOLON)
         elif c == '*':
-            return self.token(T.STAR)
+            return self._token(T.STAR)
         elif c == '!':
-            return self.token(T.BANG_EQ if self.match('=') else T.BANG)
+            return self._token(T.BANG_EQ if self._match('=') else T.BANG)
         elif c == '=':
-            return self.token(T.EQ_EQ if self.match('=') else T.EQ)
+            return self._token(T.EQ_EQ if self._match('=') else T.EQ)
         elif c == '<':
-            return self.token(T.LT_EQ if self.match('=') else T.LT)
+            return self._token(T.LT_EQ if self._match('=') else T.LT)
         elif c == '>':
-            return self.token(T.GT_EQ if self.match('=') else T.GT)
+            return self._token(T.GT_EQ if self._match('=') else T.GT)
         elif c == '/':
-            if self.match('/'):
-                while self.peek() != '\n' and not self.at_end():
-                    self.advance()
+            if self._match('/'):
+                while self._peek() != '\n' and not self._at_end():
+                    self._advance()
             else:
-                return self.token(T.SLASH)
+                return self._token(T.SLASH)
         elif c in ' \t\r\n':
             return None
         elif c == '"':
-            return self.string()
-        elif isdigit(c):
-            return self.number()
-        elif isalpha(c):
-            return self.identifier()
+            return self._string()
+        elif _isdigit(c):
+            return self._number()
+        elif _isalpha(c):
+            return self._identifier()
         else:
-            return self.error('Unexpected character')
+            return self._error('Unexpected character')
 
-    def string(self) -> Token:
+    def _string(self) -> Token:
         # FIXME(klmr): Implement escape sequences.
-        while self.peek() != '"' and not self.at_end():
-            self.advance()
-        if self.at_end():
-            return self.error('Unterminated string')
+        while self._peek() != '"' and not self._at_end():
+            self._advance()
+        if self._at_end():
+            return self._error('Unterminated string')
 
         # Skip closing quote.
-        self.advance()
-        return self.token(T.STRING, self.source[self.start + 1 : self.pos - 1])
+        self._advance()
+        return self._token(T.STRING, self._source[self._start + 1 : self._pos - 1])
 
-    def number(self) -> Token:
-        while isdigit(self.peek()):
-            self.advance()
+    def _number(self) -> Token:
+        while _isdigit(self._peek()):
+            self._advance()
 
-        if self.peek() == '.' and isdigit(self.peek_next()):
-            self.advance()
-            while isdigit(self.peek()):
-                self.advance()
+        if self._peek() == '.' and _isdigit(self._peek_next()):
+            self._advance()
+            while _isdigit(self._peek()):
+                self._advance()
 
-        value = float(self.source[self.start : self.pos])
-        return self.token(T.NUMBER, value)
+        value = float(self._source[self._start : self._pos])
+        return self._token(T.NUMBER, value)
 
-    def identifier(self) -> Token:
-        while isalnum(self.peek()):
-            self.advance()
+    def _identifier(self) -> Token:
+        while _isalnum(self._peek()):
+            self._advance()
 
-        ident = self.source[self.start : self.pos]
-        return self.token(_KEYWORD_TOKENS.get(ident, T.IDENTIFIER))
+        ident = self._source[self._start : self._pos]
+        return self._token(_KEYWORD_TOKENS.get(ident, T.IDENTIFIER))
 
-    def at_end(self) -> bool:
-        return self.pos >= len(self.source)
+    def _at_end(self) -> bool:
+        return self._pos >= len(self._source)
 
-    def advance(self) -> str:
-        pos = self.pos
-        self.pos += 1
-        return self.source[pos]
+    def _advance(self) -> str:
+        pos = self._pos
+        self._pos += 1
+        return self._source[pos]
 
-    def match(self, expected: str) -> bool:
-        if self.at_end():
+    def _match(self, expected: str) -> bool:
+        if self._at_end():
             return False
-        if self.source[self.pos] != expected:
+        if self._source[self._pos] != expected:
             return False
-        self.pos += 1
+        self._pos += 1
         return True
 
-    def peek(self) -> str:
-        return '\0' if self.at_end() else self.source[self.pos]
+    def _peek(self) -> str:
+        return '\0' if self._at_end() else self._source[self._pos]
 
-    def peek_next(self) -> str:
-        return '\0' if self.pos + 1 >= len(self.source) else self.source[self.pos + 1]
+    def _peek_next(self) -> str:
+        return '\0' if self._pos + 1 >= len(self._source) else self._source[self._pos + 1]
 
-    def token(self, type: T, literal: object = None) -> Token:
-        lexeme = self.source[self.start : self.pos]
-        return Token(type, lexeme, literal, self.pos, self.pos - self.start)
+    def _token(self, type: T, literal: object = None) -> Token:
+        lexeme = self._source[self._start : self._pos]
+        return Token(type, lexeme, literal, self._pos, self._pos - self._start)
 
-    def error(self, message: str) -> None:
-        line, col = self.position()
-        self.logger.error(line, col, message)
+    def _error(self, message: str) -> None:
+        self._logger.scan_error(self._position(), message)
 
-    def position(self) -> Tuple[int, int]:
-        line, col = 1, 0
-        for i in range(self.pos):
-            if self.source[i] == '\n':
-                line += 1
-                col = 0
-            else:
-                col += 1
-
-        return line, col
+    def _position(self) -> Tuple[int, int]:
+        return position_from_offset(self._source, self._pos)
 
 
-def isdigit(c: str) -> bool:
+def _isdigit(c: str) -> bool:
     return c >= '0' and c <= '9'
 
 
-def isalpha(c: str) -> bool:
+def _isalpha(c: str) -> bool:
     return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_'
 
 
-def isalnum(c: str) -> bool:
-    return isalpha(c) or isdigit(c)
+def _isalnum(c: str) -> bool:
+    return _isalpha(c) or _isdigit(c)

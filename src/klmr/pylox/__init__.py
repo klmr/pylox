@@ -1,7 +1,7 @@
 import sys
 
-from .scanner import scan
 from .log import LoxLogger
+from .scanner import scan
 
 
 PROMPT = '[REPL⟩ '
@@ -31,12 +31,12 @@ def run_prompt() -> None:
     while True:
         try:
             run(input(PROMPT), logger)
-            logger.had_error = False
         except EOFError:
             break
 
 
 def run(expr: str, logger: LoxLogger) -> None:
+    logger.reset(expr)
     tokens = scan(expr, logger)
     for token in tokens:
         print(token)
