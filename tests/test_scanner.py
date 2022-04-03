@@ -14,6 +14,9 @@ class MockLogger(klmr.pylox.log.Logger):
     def parse_error(self, position: Tuple[int, int], token: Token, message: str) -> None:
         pass
 
+    def runtime_error(self, error: klmr.pylox.log.LoxRuntimeError) -> None:
+        pass
+
 
 def scan(source: str):
     return list(klmr.pylox.scanner.scan(source, MockLogger()))

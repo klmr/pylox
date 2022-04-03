@@ -1,12 +1,15 @@
 import sys
 
-from .ast import print_ast
+from .interpreter import Interpreter
 from .parser import parse
 from .log import LoxLogger
 from .scanner import scan
 
 
 PROMPT = '[REPL⟩ '
+
+interpreter = Interpreter()
+logger = LoxLogger()
 
 
 def main() -> None:
@@ -21,15 +24,13 @@ def main() -> None:
 
 
 def run_script(script_path: str) -> None:
-    logger = LoxLogger()
     with open(script_path, 'r') as script:
         run(script.read(), logger)
-        if logger.had_error:
+        if logger.had_error or logger.had_runtime_error:
             sys.exit(1)
 
 
 def run_prompt() -> None:
-    logger = LoxLogger()
     while True:
         try:
             run(input(PROMPT), logger)
@@ -40,10 +41,10 @@ def run_prompt() -> None:
 def run(expr: str, logger: LoxLogger) -> None:
     logger.reset(expr)
     tokens = scan(expr, logger)
-    tree = parse(tokens, logger)
+    expr = parse(tokens, logger)
     if logger.had_error:
         return
-    print(print_ast(tree))
+    interpreter.interpret(expr, logger)
 
 
 if __name__ == '__main__':
