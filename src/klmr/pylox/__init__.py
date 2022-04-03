@@ -38,11 +38,11 @@ def run_prompt() -> None:
             break
 
 
-def run(expr: str, logger: LoxLogger) -> None:
-    logger.reset(expr)
-    tokens = scan(expr, logger)
+def run(code: str, logger: LoxLogger) -> None:
+    logger.reset(code)
+    tokens = scan(code, logger)
     expr = parse(tokens, logger)
-    if logger.had_error:
+    if expr is None:
         return
     interpreter.interpret(expr, logger)
 

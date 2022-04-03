@@ -77,6 +77,7 @@ class Scanner:
             if self._match('/'):
                 while self._peek() != '\n' and not self._at_end():
                     self._advance()
+                return None
             else:
                 return self._token(T.SLASH)
         elif c in ' \t\r\n':
@@ -88,14 +89,16 @@ class Scanner:
         elif _isalpha(c):
             return self._identifier()
         else:
-            return self._error('Unexpected character')
+            self._error('Unexpected character')
+            return None
 
-    def _string(self) -> Token:
+    def _string(self) -> Optional[Token]:
         # FIXME(klmr): Implement escape sequences.
         while self._peek() != '"' and not self._at_end():
             self._advance()
         if self._at_end():
-            return self._error('Unterminated string')
+            self._error('Unterminated string')
+            return None
 
         # Skip closing quote.
         self._advance()

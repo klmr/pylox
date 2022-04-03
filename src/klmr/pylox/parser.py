@@ -5,7 +5,7 @@ from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
 
 
-def parse(tokens: Iterable[Token], logger: Logger) -> Expr:
+def parse(tokens: Iterable[Token], logger: Logger) -> Optional[Expr]:
     return Parser(tokens, logger).parse()
 
 
@@ -15,9 +15,8 @@ class ParseError(RuntimeError):
 
 class Parser:
     def __init__(self, tokens: Iterable[Token], logger: Logger) -> None:
-        self._tokens = tokens
-        # FIXME(klmr): Why can’t pyright infer the type of `self._curr` here?
-        self._curr: Token = next(self._tokens)
+        self._tokens = iter(tokens)
+        self._curr = next(self._tokens)
         self._logger = logger
 
     def parse(self) -> Optional[Expr]:
@@ -160,5 +159,5 @@ if __name__ == '__main__':
     logger = LoxLogger()
     logger.reset(source)
     expr = parse(scan(source, logger), logger)
-    if not logger.had_error:
+    if expr is not None:
         print(print_ast(expr))

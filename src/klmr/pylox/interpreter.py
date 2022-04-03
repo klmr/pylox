@@ -1,3 +1,5 @@
+from typing import cast
+
 from .ast import Binary, Expr, Grouping, Literal, Unary, Visitor
 from .log import Logger, LoxRuntimeError
 from .token import Token, TokenType
@@ -19,7 +21,7 @@ class Interpreter(Visitor[object]):
 
         if expr.operator.type == TokenType.MINUS:
             _check_num_op(expr.operator, operand)
-            return - float(operand)
+            return - _as_number(operand)
         elif expr.operator.type == TokenType.BANG:
             return not _is_truthy(operand)
 
@@ -33,34 +35,34 @@ class Interpreter(Visitor[object]):
 
         if type == TokenType.LT:
             _check_num_ops(op, left, right)
-            return float(left) < float(right)
+            return _as_number(left) < _as_number(right)
         elif type == TokenType.LT_EQ:
             _check_num_ops(op, left, right)
-            return float(left) <= float(right)
+            return _as_number(left) <= _as_number(right)
         elif type == TokenType.GT:
             _check_num_ops(op, left, right)
-            return float(left) > float(right)
+            return _as_number(left) > _as_number(right)
         elif type == TokenType.GT_EQ:
             _check_num_ops(op, left, right)
-            return float(left) >= float(right)
+            return _as_number(left) >= _as_number(right)
         elif type == TokenType.EQ:
             return _is_equal(left, right)
         elif type == TokenType.BANG_EQ:
             return not _is_equal(left, right)
         elif type == TokenType.MINUS:
             _check_num_ops(op, left, right)
-            return float(left) - float(right)
+            return _as_number(left) - _as_number(right)
         elif type == TokenType.SLASH:
             _check_num_ops(op, left, right)
-            if float(right) == 0:
+            if _as_number(right) == 0:
                 raise LoxRuntimeError(op, 'Cannot divide by zero')
-            return float(left) / float(right)
+            return _as_number(left) / _as_number(right)
         elif type == TokenType.STAR:
             _check_num_ops(op, left, right)
-            return float(left) * float(right)
+            return _as_number(left) * _as_number(right)
         elif type == TokenType.PLUS:
             if isinstance(left, float) and isinstance(right, float):
-                return float(left) + float(right)
+                return _as_number(left) + _as_number(right)
             elif isinstance(left, str) and isinstance(right, str):
                 return f'{left}{right}'
 
@@ -92,6 +94,10 @@ def _is_equal(x: object, y: object) -> bool:
     return x == y
 
 
+def _as_number(x: object) -> float:
+    return float(cast(float, x))
+
+
 def _check_num_op(op: Token, x: object) -> None:
     if not isinstance(x, float):
         raise LoxRuntimeError(op, 'Operand must be a number')
@@ -102,7 +108,7 @@ def _check_num_ops(op: Token, left: object, right: object) -> None:
         raise LoxRuntimeError(op, 'Operands must be numbers')
 
 
-def _stringify(x: object) -> None:
+def _stringify(x: object) -> str:
     if x is None:
         return 'nil'
 
