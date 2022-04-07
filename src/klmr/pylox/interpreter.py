@@ -120,6 +120,10 @@ def _stringify(x: object) -> str:
     match x:
         case None:
             return 'nil'
+        case False:
+            return 'false'
+        case True:
+            return 'true'
         case float(x):
             text = str(x)
             if text.endswith('.0'):
