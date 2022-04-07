@@ -1,94 +1,47 @@
 import abc
-from typing import Generic, TypeVar
+from dataclasses import dataclass
 
 from .token import Token, TokenType
 
 
-R = TypeVar('R')
-
-
 class Expr(abc.ABC):
-    def accept(self, visitor: 'Visitor[R]') -> R:
-        myclass = type(self).__name__.lower()
-        return getattr(visitor, f'visit_{myclass}')(self)
+    pass
 
 
+@dataclass
 class Binary(Expr):
-    def __init__(self, left: Expr, operator: Token, right: Expr) -> None:
-        super().__init__()
-        self.left = left
-        self.operator = operator
-        self.right = right
-
-    def __repr__(self) -> str:
-        return f'Binary({self.left!r}, {self.operator!r}, {self.right!r})'
+    left: Expr
+    operator: Token
+    right: Expr
 
 
+@dataclass
 class Unary(Expr):
-    def __init__(self, operator: Token, operand: Expr) -> None:
-        super().__init__()
-        self.operator = operator
-        self.operand = operand
-
-    def __repr__(self) -> str:
-        return f'Unary({self.operator!r}, {self.operand!r})'
+    operator: Token
+    operand: Expr
 
 
+@dataclass
 class Grouping(Expr):
-    def __init__(self, expr: Expr) -> None:
-        super().__init__()
-        self.expr = expr
-
-    def __repr__(self) -> str:
-        return f'Grouping({self.expr!r})'
+    expr: Expr
 
 
+@dataclass
 class Literal(Expr):
-    def __init__(self, value: object) -> None:
-        super().__init__()
-        self.value = value
-
-    def __repr__(self) -> str:
-        return f'Literal({self.value!r})'
+    value: object
 
 
-class Visitor(abc.ABC, Generic[R]):
-    @abc.abstractmethod
-    def visit_binary(self, expr: Binary) -> R:
-        pass
-
-    @abc.abstractmethod
-    def visit_unary(self, expr: Unary) -> R:
-        pass
-
-    @abc.abstractmethod
-    def visit_grouping(self, expr: Grouping) -> R:
-        pass
-
-    @abc.abstractmethod
-    def visit_literal(self, expr: Literal) -> R:
-        pass
-
-
-class AstPrinter(Visitor[str]):
-    def print(self, expr: Expr) -> str:
-        return expr.accept(self)
-
-    def visit_binary(self, expr: Binary) -> str:
-        return f'({expr.operator.lexeme} {expr.left.accept(self)} {expr.right.accept(self)})'
-
-    def visit_unary(self, expr: Unary) -> str:
-        return f'({expr.operator.lexeme} {expr.operand.accept(self)})'
-
-    def visit_grouping(self, expr: Grouping) -> str:
-        return f'(group {expr.expr.accept(self)})'
-
-    def visit_literal(self, expr: Literal) -> str:
-        return f'{expr.value}'
-
-
-def print_ast(expr: Expr) -> str:
-    return AstPrinter().print(expr)
+def format_ast(expr: Expr) -> str:
+    match expr:
+        case Binary(left, op, right):
+            return f'({op.lexeme} {format_ast(left)} {format_ast(right)})'
+        case Unary(op, x):
+            return f'({op.lexeme} {format_ast(x)})'
+        case Grouping(e):
+            return f'(group {format_ast(e)})'
+        case Literal(x):
+            return f'{x}'
+    assert False, 'Unhandled expr'
 
 
 if __name__ == '__main__':
@@ -102,4 +55,4 @@ if __name__ == '__main__':
         Grouping(Binary(Literal(2), tok(TokenType.PLUS, '+'), Literal(5))),
     )
 
-    print(print_ast(expr))
+    print(format_ast(expr))

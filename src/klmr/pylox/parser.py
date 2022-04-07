@@ -152,7 +152,7 @@ class Parser:
 
 if __name__ == '__main__':
     from .scanner import scan
-    from .ast import print_ast
+    from .ast import format_ast
     import sys
 
     source = sys.stdin.read()
@@ -160,4 +160,4 @@ if __name__ == '__main__':
     logger.reset(source)
     expr = parse(scan(source, logger), logger)
     if expr is not None:
-        print(print_ast(expr))
+        print(format_ast(expr))

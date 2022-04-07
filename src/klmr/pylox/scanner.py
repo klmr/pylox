@@ -44,53 +44,52 @@ class Scanner:
         yield Token(T.EOF, '', None, self._pos, 0)
 
     def _scan_token(self) -> Optional[Token]:
-        c = self._advance()
-        if c == '(':
-            return self._token(T.LEFT_PAREN)
-        elif c == ')':
-            return self._token(T.RIGHT_PAREN)
-        elif c == '{':
-            return self._token(T.LEFT_BRACE)
-        elif c == '}':
-            return self._token(T.RIGHT_BRACE)
-        elif c == ',':
-            return self._token(T.COMMA)
-        elif c == '.':
-            return self._token(T.DOT)
-        elif c == '-':
-            return self._token(T.MINUS)
-        elif c == '+':
-            return self._token(T.PLUS)
-        elif c == ';':
-            return self._token(T.SEMICOLON)
-        elif c == '*':
-            return self._token(T.STAR)
-        elif c == '!':
-            return self._token(T.BANG_EQ if self._match('=') else T.BANG)
-        elif c == '=':
-            return self._token(T.EQ_EQ if self._match('=') else T.EQ)
-        elif c == '<':
-            return self._token(T.LT_EQ if self._match('=') else T.LT)
-        elif c == '>':
-            return self._token(T.GT_EQ if self._match('=') else T.GT)
-        elif c == '/':
-            if self._match('/'):
-                while self._peek() != '\n' and not self._at_end():
-                    self._advance()
+        match self._advance():
+            case '(':
+                return self._token(T.LEFT_PAREN)
+            case ')':
+                return self._token(T.RIGHT_PAREN)
+            case '{':
+                return self._token(T.LEFT_BRACE)
+            case '}':
+                return self._token(T.RIGHT_BRACE)
+            case ',':
+                return self._token(T.COMMA)
+            case '.':
+                return self._token(T.DOT)
+            case '-':
+                return self._token(T.MINUS)
+            case '+':
+                return self._token(T.PLUS)
+            case ';':
+                return self._token(T.SEMICOLON)
+            case '*':
+                return self._token(T.STAR)
+            case '!':
+                return self._token(T.BANG_EQ if self._match('=') else T.BANG)
+            case '=':
+                return self._token(T.EQ_EQ if self._match('=') else T.EQ)
+            case '<':
+                return self._token(T.LT_EQ if self._match('=') else T.LT)
+            case '>':
+                return self._token(T.GT_EQ if self._match('=') else T.GT)
+            case '/':
+                if self._match('/'):
+                    while self._peek() != '\n' and not self._at_end():
+                        self._advance()
+                    return None
+                else:
+                    return self._token(T.SLASH)
+            case ' ' | '\t' | '\r' | '\n':
                 return None
-            else:
-                return self._token(T.SLASH)
-        elif c in ' \t\r\n':
-            return None
-        elif c == '"':
-            return self._string()
-        elif _isdigit(c):
-            return self._number()
-        elif _isalpha(c):
-            return self._identifier()
-        else:
-            self._error('Unexpected character')
-            return None
+            case  '"':
+                return self._string()
+            case c if _isdigit(c):
+                return self._number()
+            case c if _isalpha(c):
+                return self._identifier()
+        self._error('Unexpected character')
+        return None
 
     def _string(self) -> Optional[Token]:
         # FIXME(klmr): Implement escape sequences.
