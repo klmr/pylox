@@ -86,8 +86,8 @@ def _is_truthy(x: object) -> bool:
     match x:
         case None:
             return False
-        case bool(x):
-            return bool(x)
+        case bool(b):
+            return b
         case _:
             return True
 
