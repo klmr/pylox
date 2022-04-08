@@ -57,7 +57,7 @@ class TokenType(AutoIncrement):
     EOF = ()
 
     def __repr__(self) -> str:
-        return f'<{self.__class__.__name__}.{self.name}>'
+        return f'<{type(self).__name__}.{self.name}>'
 
 
 class Token:

@@ -124,7 +124,7 @@ def _stringify(x: object) -> str:
             return 'false'
         case True:
             return 'true'
-        case float(x):
+        case float():
             text = str(x)
             if text.endswith('.0'):
                 text = text[: -2]
