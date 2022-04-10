@@ -1,6 +1,5 @@
 import abc
 from dataclasses import dataclass
-from typing import List, Optional
 
 from .token import Token, TokenType
 
@@ -60,12 +59,12 @@ class ExprStmt(Stmt):
 @dataclass
 class VarStmt(Stmt):
     name: Token
-    init: Optional[Expr]
+    init: Expr | None
 
 
 @dataclass
 class Block(Stmt):
-    stmts: List[Stmt]
+    stmts: list[Stmt]
 
 
 def format_ast(expr: Expr | Stmt) -> str:

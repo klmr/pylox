@@ -1,4 +1,4 @@
-from typing import List, cast
+from typing import cast
 
 from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
 from .environment import Environment
@@ -10,7 +10,7 @@ class Interpreter:
     def __init__(self) -> None:
         self._env = Environment()
 
-    def interpret(self, stmts: List[Stmt], logger: Logger) -> None:
+    def interpret(self, stmts: list[Stmt], logger: Logger) -> None:
         try:
             for stmt in stmts:
                 self._execute(stmt)
@@ -30,7 +30,7 @@ class Interpreter:
             case Block(stmts):
                 self._execute_block(stmts, Environment(self._env))
 
-    def _execute_block(self, stmts: List[Stmt], env: Environment) -> None:
+    def _execute_block(self, stmts: list[Stmt], env: Environment) -> None:
         prev = self._env
         try:
             self._env = env
@@ -67,8 +67,8 @@ class Interpreter:
                 return - _as_number(operand)
             case TokenType.BANG:
                 return not _is_truthy(operand)
-            case _:
-                return None
+
+        assert False, 'Unhandled unary operator'
 
     def _visit_binary(self, expr: Binary) -> object:
         left = self._evaluate(expr.left)
@@ -110,8 +110,8 @@ class Interpreter:
                     return f'{left}{right}'
 
                 raise LoxRuntimeError(op, 'Operands must be two numbers or two strings')
-            case _:
-                return None
+
+        assert False, 'Unhandled binary operator'
 
 
 def _is_truthy(x: object) -> bool:

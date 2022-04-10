@@ -1,11 +1,12 @@
-from typing import Iterable, List, Optional, cast
+from collections.abc import Iterable
+from typing import cast
 
 from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
 
 
-def parse(tokens: Iterable[Token], logger: Logger) -> List[Stmt]:
+def parse(tokens: Iterable[Token], logger: Logger) -> list[Stmt]:
     return Parser(tokens, logger).parse()
 
 
@@ -19,11 +20,11 @@ class Parser:
         self._curr = next(self._tokens)
         self._logger = logger
 
-    def parse(self) -> List[Stmt]:
+    def parse(self) -> list[Stmt]:
         '''
         program -> statement* EOF ;
         '''
-        statements: List[Stmt] = []
+        statements: list[Stmt] = []
         while not self._at_end():
             decl = self._declaration()
             if decl is not None:
@@ -31,7 +32,7 @@ class Parser:
 
         return statements
 
-    def _declaration(self) -> Optional[Stmt]:
+    def _declaration(self) -> Stmt | None:
         '''
         declaration -> var_decl
                      | statement ;
@@ -84,11 +85,11 @@ class Parser:
         self._consume(TT.SEMICOLON, 'Expected \';\' after value')
         return PrintStmt(value)
 
-    def _block(self) -> List[Stmt]:
+    def _block(self) -> list[Stmt]:
         '''
         block -> "{" declaration* "}" ;
         '''
-        stmts: List[Stmt] = []
+        stmts: list[Stmt] = []
         while not self._check(TT.RIGHT_BRACE) and not self._at_end():
             decl = self._declaration()
             if decl is not None:
@@ -203,7 +204,7 @@ class Parser:
 
         raise self._error(self._curr, 'Expected expression.')
 
-    def _match_one_of(self, *types: TT) -> Optional[Token]:
+    def _match_one_of(self, *types: TT) -> Token | None:
         for type in types:
             if self._check(type):
                 return self._advance()

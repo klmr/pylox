@@ -1,6 +1,5 @@
 import abc
 import sys
-from typing import Tuple
 
 from .token import Token, TokenType
 
@@ -13,7 +12,7 @@ class LoxRuntimeError(RuntimeError):
 
 class Logger(abc.ABC):
     @abc.abstractmethod
-    def scan_error(self, position: Tuple[int, int], message: str) -> None:
+    def scan_error(self, position: tuple[int, int], message: str) -> None:
         pass
 
     @abc.abstractmethod
@@ -34,7 +33,7 @@ class LoxLogger(Logger):
         self.had_runtime_error = False
         self.source = source
 
-    def scan_error(self, position: Tuple[int, int], message: str) -> None:
+    def scan_error(self, position: tuple[int, int], message: str) -> None:
         self._report(position, '', message)
 
     def parse_error(self, token: Token, message: str) -> None:
@@ -49,13 +48,13 @@ class LoxLogger(Logger):
         sys.stderr.write(f'[ln {line}/col {col}] Error: {error}\n')
         self.had_runtime_error = True
 
-    def _report(self, position: Tuple[int, int], where: str, message: str) -> None:
+    def _report(self, position: tuple[int, int], where: str, message: str) -> None:
         line, col = position
         sys.stderr.write(f'[ln {line}/col {col}] Error{where}: {message}\n')
         self.had_error = True
 
 
-def position_from_offset(source: str, offset: int) -> Tuple[int, int]:
+def position_from_offset(source: str, offset: int) -> tuple[int, int]:
     line, col = 1, 0
     for i in range(offset):
         if source[i] == '\n':

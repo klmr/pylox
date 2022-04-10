@@ -1,13 +1,14 @@
-from typing import Dict, Final, Optional
+from __future__ import annotations
+from typing import Final
 
 from .log import LoxRuntimeError
 from .token import Token
 
 
 class Environment:
-    def __init__(self, enclosing: Optional['Environment'] = None) -> None:
+    def __init__(self, enclosing: Environment | None = None) -> None:
         self._enclosing: Final = enclosing
-        self._bindings: Final[Dict[str, object]] = {}
+        self._bindings: Final[dict[str, object]] = {}
 
     def define(self, name: str, value: object) -> None:
         self._bindings[name] = value

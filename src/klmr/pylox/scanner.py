@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Tuple
+from collections.abc import Iterable
 
 from .log import Logger, position_from_offset
 from .token import Token, TokenType as T
@@ -43,7 +43,7 @@ class Scanner:
                 yield token
         yield Token(T.EOF, '', None, self._pos, 0)
 
-    def _scan_token(self) -> Optional[Token]:
+    def _scan_token(self) -> Token | None:
         match self._advance():
             case '(':
                 return self._token(T.LEFT_PAREN)
@@ -91,7 +91,7 @@ class Scanner:
         self._error('Unexpected character')
         return None
 
-    def _string(self) -> Optional[Token]:
+    def _string(self) -> Token | None:
         # FIXME(klmr): Implement escape sequences.
         while self._peek() != '"' and not self._at_end():
             self._advance()
@@ -151,7 +151,7 @@ class Scanner:
     def _error(self, message: str) -> None:
         self._logger.scan_error(self._position(), message)
 
-    def _position(self) -> Tuple[int, int]:
+    def _position(self) -> tuple[int, int]:
         return position_from_offset(self._source, self._pos)
 
 
