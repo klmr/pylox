@@ -1,11 +1,11 @@
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional, cast
 
-from .ast import Binary, Expr, Grouping, Literal, Unary
+from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
 
 
-def parse(tokens: Iterable[Token], logger: Logger) -> Optional[Expr]:
+def parse(tokens: Iterable[Token], logger: Logger) -> List[Stmt]:
     return Parser(tokens, logger).parse()
 
 
@@ -19,18 +19,106 @@ class Parser:
         self._curr = next(self._tokens)
         self._logger = logger
 
-    def parse(self) -> Optional[Expr]:
-        # FIXME(klmr): Ensure that the parser has consumed all tokens.
+    def parse(self) -> List[Stmt]:
+        '''
+        program -> statement* EOF ;
+        '''
+        statements: List[Stmt] = []
+        while not self._at_end():
+            decl = self._declaration()
+            if decl is not None:
+                statements.append(decl)
+
+        return statements
+
+    def _declaration(self) -> Optional[Stmt]:
+        '''
+        declaration -> var_decl
+                     | statement ;
+        '''
         try:
-            return self._expression()
+            if self._match_one_of(TT.VAR):
+                return self._var_decl()
+            else:
+                return self._statement()
         except ParseError:
+            self._synchronize()
             return None
+
+    def _var_decl(self) -> Stmt:
+        '''
+        var_decl -> "var" IDENTIFIER ( "=" expression )? ";" ;
+        '''
+        name = self._consume(TT.IDENTIFIER, 'Expected variable name')
+        init = self._expression() if self._match_one_of(TT.EQ) else None
+
+        self._consume(TT.SEMICOLON, 'Expected \';\' after variable declaration')
+        return VarStmt(name, init)
+
+    def _statement(self) -> Stmt:
+        '''
+        statement -> expr_stmt
+                   | print_stmt
+                   | block ;
+        '''
+        if self._match_one_of(TT.PRINT):
+            return self._print_statement()
+        elif self._match_one_of(TT.LEFT_BRACE):
+            return Block(self._block())
+        else:
+            return self._expression_statement()
+
+    def _expression_statement(self) -> Stmt:
+        '''
+        expr_stmt -> expression ";" ;
+        '''
+        expr = self._expression()
+        self._consume(TT.SEMICOLON, 'Expected \';\' after value')
+        return ExprStmt(expr)
+
+    def _print_statement(self) -> Stmt:
+        '''
+        print_stmt -> "print" expression ";" ;
+        '''
+        value = self._expression()
+        self._consume(TT.SEMICOLON, 'Expected \';\' after value')
+        return PrintStmt(value)
+
+    def _block(self) -> List[Stmt]:
+        '''
+        block -> "{" declaration* "}" ;
+        '''
+        stmts: List[Stmt] = []
+        while not self._check(TT.RIGHT_BRACE) and not self._at_end():
+            decl = self._declaration()
+            if decl is not None:
+                stmts.append(decl)
+
+        self._consume(TT.RIGHT_BRACE, 'Expected \'}\' after block')
+        return stmts
 
     def _expression(self) -> Expr:
         '''
-        expression -> equality ;
+        expression -> assignment ;
         '''
-        return self._equality()
+        return self._assignment()
+
+    def _assignment(self) -> Expr:
+        '''
+        assignment -> IDENTIFIER "=" assignment
+                    | equality ;
+        '''
+        expr = self._equality()
+        if eq := self._match_one_of(TT.EQ):
+            value = self._assignment()
+
+            if isinstance(expr, Variable):
+                name = cast(Variable, expr).name
+                return Assign(name, value)
+
+            self._error(eq, f'Invalid assignment target {expr}')
+
+        return expr
 
     def _equality(self) -> Expr:
         '''
@@ -93,7 +181,9 @@ class Parser:
 
     def _primary(self) -> Expr:
         '''
-        primary -> "true" | "false" | "nil" | NUMBER | STRING
+        primary -> "true" | "false" | "nil"
+                 | NUMBER | STRING
+                 | IDENTIFIER
                  | "(" expression ")" ;
         '''
         if self._match_one_of(TT.FALSE):
@@ -104,6 +194,8 @@ class Parser:
             return Literal(None)
         elif lit := self._match_one_of(TT.NUMBER, TT.STRING):
             return Literal(lit.literal)
+        elif var := self._match_one_of(TT.IDENTIFIER):
+            return Variable(var)
         elif self._match_one_of(TT.LEFT_PAREN):
             expr = self._expression()
             self._consume(TT.RIGHT_PAREN, 'Expected \')\' after expression')
@@ -158,6 +250,6 @@ if __name__ == '__main__':
     source = sys.stdin.read()
     logger = LoxLogger()
     logger.reset(source)
-    expr = parse(scan(source, logger), logger)
-    if expr is not None:
-        print(format_ast(expr))
+    stmts = parse(scan(source, logger), logger)
+    for stmt in stmts:
+        print(format_ast(stmt))

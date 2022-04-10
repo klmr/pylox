@@ -1,21 +1,11 @@
 from pathlib import Path
 import pytest
-from typing import List, Tuple
+from typing import List
 
 import klmr.pylox.scanner
-from klmr.pylox.token import Token, TokenType
-import klmr.pylox.log
+from klmr.pylox.token import TokenType
 
-
-class MockLogger(klmr.pylox.log.Logger):
-    def scan_error(self, position: Tuple[int, int], message: str) -> None:
-        raise ValueError(message)
-
-    def parse_error(self, position: Tuple[int, int], token: Token, message: str) -> None:
-        pass
-
-    def runtime_error(self, error: klmr.pylox.log.LoxRuntimeError) -> None:
-        pass
+from .log import MockLogger
 
 
 def scan(source: str):
@@ -28,7 +18,7 @@ def scan(source: str):
 # column so that we can compare them here.
 # Also rename some tokens; namely: EQUAL => EQ, GREATER => GT, LESS => LT.
 def collect_test_cases():
-    datadir = Path(__file__).parent / 'data'
+    datadir = Path(__file__).parent / 'data/scan'
     return [(file, parse_expected(file)) for file in datadir.iterdir()]
 
 
@@ -60,7 +50,7 @@ def test_scanner_with_code(file, expected):
             assert token.literal == exp[2]
 
 
-def test_fail_unterminated_string(capsys):
+def test_fail_unterminated_string():
     with pytest.raises(ValueError, match='Unterminated string'):
         scan('"test')
 

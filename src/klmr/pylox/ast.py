@@ -1,11 +1,18 @@
 import abc
 from dataclasses import dataclass
+from typing import List, Optional
 
 from .token import Token, TokenType
 
 
 class Expr(abc.ABC):
     pass
+
+
+@dataclass
+class Assign(Expr):
+    name: Token
+    value: Expr
 
 
 @dataclass
@@ -31,8 +38,40 @@ class Literal(Expr):
     value: object
 
 
-def format_ast(expr: Expr) -> str:
+@dataclass
+class Variable(Expr):
+    name: Token
+
+
+class Stmt(abc.ABC):
+    pass
+
+
+@dataclass
+class PrintStmt(Stmt):
+    expr: Expr
+
+
+@dataclass
+class ExprStmt(Stmt):
+    expr: Expr
+
+
+@dataclass
+class VarStmt(Stmt):
+    name: Token
+    init: Optional[Expr]
+
+
+@dataclass
+class Block(Stmt):
+    stmts: List[Stmt]
+
+
+def format_ast(expr: Expr | Stmt) -> str:
     match expr:
+        case Assign(name, value):
+            return f'(= {name.lexeme} {format_ast(value)})'
         case Binary(left, op, right):
             return f'({op.lexeme} {format_ast(left)} {format_ast(right)})'
         case Unary(op, x):
@@ -41,6 +80,20 @@ def format_ast(expr: Expr) -> str:
             return f'(group {format_ast(e)})'
         case Literal(x):
             return f'{x}'
+        case Variable(name):
+            return f'{name.length}'
+
+        case PrintStmt(e):
+            return f'(print {format_ast(e)})'
+        case ExprStmt(e):
+            return format_ast(e)
+        case VarStmt(name, init):
+            init_fmt = f' {format_ast(init)}' if init is not None else ''
+            return f'(var {name.lexeme}{init_fmt})'
+        case Block(stmts):
+            stmts_fmt = ' '.join(format_ast(stmt) for stmt in stmts)
+            return f'({{ {stmts_fmt})'
+
     assert False, 'Unhandled expr'
 
 

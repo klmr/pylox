@@ -1,17 +1,43 @@
-from typing import cast
+from typing import List, cast
 
-from .ast import Binary, Expr, Grouping, Literal, Unary
+from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
+from .environment import Environment
 from .log import Logger, LoxRuntimeError
 from .token import Token, TokenType
 
 
 class Interpreter:
-    def interpret(self, expr: Expr, logger: Logger) -> None:
+    def __init__(self) -> None:
+        self._env = Environment()
+
+    def interpret(self, stmts: List[Stmt], logger: Logger) -> None:
         try:
-            value = self._evaluate(expr)
-            print(_stringify(value))
+            for stmt in stmts:
+                self._execute(stmt)
         except LoxRuntimeError as e:
             logger.runtime_error(e)
+
+    def _execute(self, stmt: Stmt) -> None:
+        match stmt:
+            case ExprStmt(expr):
+                self._evaluate(expr)
+            case PrintStmt(expr):
+                value = self._evaluate(expr)
+                print(_stringify(value))
+            case VarStmt(name, init):
+                value = self._evaluate(init) if init is not None else None
+                self._env.define(name.lexeme, value)
+            case Block(stmts):
+                self._execute_block(stmts, Environment(self._env))
+
+    def _execute_block(self, stmts: List[Stmt], env: Environment) -> None:
+        prev = self._env
+        try:
+            self._env = env
+            for stmt in stmts:
+                self._execute(stmt)
+        finally:
+            self._env = prev
 
     def _evaluate(self, expr: Expr) -> object:
         match expr:
@@ -23,6 +49,12 @@ class Interpreter:
                 return self._visit_unary(expr)
             case Binary():
                 return self._visit_binary(expr)
+            case Variable(name):
+                return self._env.get(name)
+            case Assign(name, e):
+                value = self._evaluate(e)
+                self._env.assign(name, value)
+                return value
 
         assert False, 'Unhandled expr'
 

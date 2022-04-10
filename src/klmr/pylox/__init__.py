@@ -41,10 +41,10 @@ def run_prompt() -> None:
 def run(code: str, logger: LoxLogger) -> None:
     logger.reset(code)
     tokens = scan(code, logger)
-    expr = parse(tokens, logger)
-    if expr is None:
+    stmts = parse(tokens, logger)
+    if logger.had_error:
         return
-    interpreter.interpret(expr, logger)
+    interpreter.interpret(stmts, logger)
 
 
 if __name__ == '__main__':
