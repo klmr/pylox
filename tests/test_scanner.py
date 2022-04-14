@@ -1,6 +1,5 @@
 from pathlib import Path
 import pytest
-from typing import List
 
 import klmr.pylox.scanner
 from klmr.pylox.token import TokenType
@@ -22,7 +21,7 @@ def collect_test_cases():
     return [(file, parse_expected(file)) for file in datadir.iterdir()]
 
 
-def parse_expected(file: Path) -> List[List[str]]:
+def parse_expected(file: Path) -> list[list[str]]:
     def split_line(line: str):
         items = line.replace('// expect: ', '').strip().split(' ', 3)
         return [*items[0:2], eval(items[2])]
@@ -35,7 +34,7 @@ def parse_expected(file: Path) -> List[List[str]]:
 
 
 @pytest.mark.parametrize("file,expected", collect_test_cases())
-def test_scanner_with_code(file, expected):
+def test_scanner_with_code(file: str, expected: str):
     with open(file, 'r') as f:
         contents = f.read()
 

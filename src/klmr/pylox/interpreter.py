@@ -1,6 +1,9 @@
 from typing import cast
 
-from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
+from .ast import (
+    Assign, Binary, Block, Expr, ExprStmt, Grouping, IfStmt, Literal, Logical, PrintStmt, Stmt, Unary, VarStmt,
+    Variable, WhileStmt
+)
 from .environment import Environment
 from .log import Logger, LoxRuntimeError
 from .token import Token, TokenType
@@ -21,12 +24,20 @@ class Interpreter:
         match stmt:
             case ExprStmt(expr):
                 self._evaluate(expr)
+            case IfStmt(cond, then_branch, else_branch):
+                if _is_truthy(self._evaluate(cond)):
+                    self._execute(then_branch)
+                elif else_branch:
+                    self._execute(else_branch)
             case PrintStmt(expr):
                 value = self._evaluate(expr)
                 print(_stringify(value))
             case VarStmt(name, init):
                 value = self._evaluate(init) if init is not None else None
                 self._env.define(name.lexeme, value)
+            case WhileStmt(cond, body):
+                while _is_truthy(self._evaluate(cond)):
+                    self._execute(body)
             case Block(stmts):
                 self._execute_block(stmts, Environment(self._env))
 
@@ -49,6 +60,8 @@ class Interpreter:
                 return self._visit_unary(expr)
             case Binary():
                 return self._visit_binary(expr)
+            case Logical():
+                return self._visit_logical(expr)
             case Variable(name):
                 return self._env.get(name)
             case Assign(name, e):
@@ -112,6 +125,20 @@ class Interpreter:
                 raise LoxRuntimeError(op, 'Operands must be two numbers or two strings')
 
         assert False, 'Unhandled binary operator'
+
+    def _visit_logical(self, expr: Logical) -> object:
+        left = self._evaluate(expr.left)
+        op = expr.operator
+
+        match op.type:
+            case TokenType.OR:
+                if _is_truthy(left):
+                    return left
+            case TokenType.AND:
+                if not _is_truthy(left):
+                    return left
+
+        return self._evaluate(expr.right)
 
 
 def _is_truthy(x: object) -> bool:

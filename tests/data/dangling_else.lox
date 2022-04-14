@@ -1,0 +1,4 @@
+var first = true;
+var second = false;
+
+if (first) if (second) print "yes"; else print "no";

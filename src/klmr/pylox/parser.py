@@ -1,7 +1,10 @@
 from collections.abc import Iterable
 from typing import cast
 
-from .ast import Assign, Binary, Block, Expr, ExprStmt, Grouping, Literal, PrintStmt, Stmt, Unary, VarStmt, Variable
+from .ast import (
+    Assign, Binary, Block, Expr, ExprStmt, Grouping, IfStmt, Literal, Logical, PrintStmt, Stmt, Unary, VarStmt,
+    Variable, WhileStmt
+)
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
 
@@ -59,15 +62,72 @@ class Parser:
     def _statement(self) -> Stmt:
         '''
         statement -> expr_stmt
+                   | for_stmt
+                   | if_stmt
                    | print_stmt
+                   | while_stmt
                    | block ;
         '''
-        if self._match_one_of(TT.PRINT):
+        if self._match_one_of(TT.FOR):
+            return self._for_statement()
+        elif self._match_one_of(TT.IF):
+            return self._if_statement()
+        elif self._match_one_of(TT.PRINT):
             return self._print_statement()
+        elif self._match_one_of(TT.WHILE):
+            return self._while_statement()
         elif self._match_one_of(TT.LEFT_BRACE):
             return Block(self._block())
         else:
             return self._expression_statement()
+
+    def _for_statement(self) -> Stmt:
+        '''
+        for_stmt -> "for" "("
+                    ( var_decl | expr_stmt | ";" )
+                    expression? ";"
+                    expression? ")"
+                    statement ;
+        '''
+        self._consume(TT.LEFT_PAREN, 'Expected \'(\' after \'for\'')
+
+        if self._match_one_of(TT.SEMICOLON):
+            init = None
+        elif self._match_one_of(TT.VAR):
+            init = self._var_decl()
+        else:
+            init = self._expression_statement()
+
+        cond = self._expression() if not self._check(TT.SEMICOLON) else Literal(True)
+        self._consume(TT.SEMICOLON, 'Expected \';\' after loop condition')
+
+        incr = self._expression() if not self._check(TT.RIGHT_PAREN) else None
+        self._consume(TT.RIGHT_PAREN, 'Expected \')\' after \'for\' clause')
+
+        body = self._statement()
+
+        if incr:
+            body = Block([body, ExprStmt(incr)])
+
+        body = WhileStmt(cond, body)
+
+        if init:
+            body = Block([init, body])
+
+        return body
+
+    def _if_statement(self) -> Stmt:
+        '''
+        if_stmt -> "if" "(" expression ")" statement ( "else" statement )? ;
+        '''
+        self._consume(TT.LEFT_PAREN, 'Expected \'(\' after \'if\'')
+        cond = self._expression()
+        self._consume(TT.RIGHT_PAREN, 'Expected \')\' after if condition')
+
+        then_branch = self._statement()
+        else_branch = self._statement() if self._match_one_of(TT.ELSE) else None
+
+        return IfStmt(cond, then_branch, else_branch)
 
     def _expression_statement(self) -> Stmt:
         '''
@@ -84,6 +144,17 @@ class Parser:
         value = self._expression()
         self._consume(TT.SEMICOLON, 'Expected \';\' after value')
         return PrintStmt(value)
+
+    def _while_statement(self) -> Stmt:
+        '''
+        while_stmt -> "while" "(" expression ")" statement ;
+        '''
+        self._consume(TT.LEFT_PAREN, 'Expected \'(\' after \'while\'')
+        cond = self._expression()
+        self._consume(TT.RIGHT_PAREN, 'Expected \')\' after loop condition')
+        body = self._statement()
+
+        return WhileStmt(cond, body)
 
     def _block(self) -> list[Stmt]:
         '''
@@ -107,9 +178,9 @@ class Parser:
     def _assignment(self) -> Expr:
         '''
         assignment -> IDENTIFIER "=" assignment
-                    | equality ;
+                    | logical_or ;
         '''
-        expr = self._equality()
+        expr = self._or()
         if eq := self._match_one_of(TT.EQ):
             value = self._assignment()
 
@@ -118,6 +189,30 @@ class Parser:
                 return Assign(name, value)
 
             self._error(eq, f'Invalid assignment target {expr}')
+
+        return expr
+
+    def _or(self) -> Expr:
+        '''
+        logical_or -> logical_and ( "or" logical_and )* ;
+        '''
+        expr = self._and()
+
+        while op := self._match_one_of(TT.OR):
+            right = self._and()
+            expr = Logical(expr, op, right)
+
+        return expr
+
+    def _and(self) -> Expr:
+        '''
+        logical_and -> equality ( "and" equality )* ;
+        '''
+        expr = self._equality()
+
+        while op := self._match_one_of(TT.AND):
+            right = self._equality()
+            expr = Logical(expr, op, right)
 
         return expr
 
