@@ -1,8 +1,8 @@
 import sys
 
 from .interpreter import Interpreter
-from .parser import parse
 from .log import LoxLogger
+from .parser import parse
 from .scanner import scan
 
 
