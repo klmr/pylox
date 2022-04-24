@@ -1,8 +1,8 @@
-import klmr.pylox.log
+from klmr.pylox.log import Logger, LoxRuntimeError
 from klmr.pylox.token import Token
 
 
-class MockLogger(klmr.pylox.log.Logger):
+class MockLogger(Logger):
     had_error = False
 
     def reset(self, source: str) -> None:
@@ -14,5 +14,5 @@ class MockLogger(klmr.pylox.log.Logger):
     def parse_error(self, position: tuple[int, int], token: Token, message: str) -> None:
         raise ValueError(message)
 
-    def runtime_error(self, error: klmr.pylox.log.LoxRuntimeError) -> None:
+    def runtime_error(self, error: LoxRuntimeError) -> None:
         raise error

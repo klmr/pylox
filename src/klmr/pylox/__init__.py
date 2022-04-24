@@ -8,8 +8,8 @@ from .scanner import scan
 
 PROMPT = '[REPL⟩ '
 
-interpreter = Interpreter()
 logger = LoxLogger()
+interpreter = Interpreter(logger)
 
 
 def main() -> None:
@@ -25,7 +25,7 @@ def main() -> None:
 
 def run_script(script_path: str) -> None:
     with open(script_path, 'r') as script:
-        run(script.read(), logger)
+        run(script.read())
         if logger.had_error or logger.had_runtime_error:
             sys.exit(1)
 
@@ -33,18 +33,18 @@ def run_script(script_path: str) -> None:
 def run_prompt() -> None:
     while True:
         try:
-            run(input(PROMPT), logger)
+            run(input(PROMPT))
         except EOFError:
             break
 
 
-def run(code: str, logger: LoxLogger) -> None:
+def run(code: str) -> None:
     logger.reset(code)
     tokens = scan(code, logger)
     stmts = parse(tokens, logger)
     if logger.had_error:
         return
-    interpreter.interpret(stmts, logger)
+    interpreter.interpret(stmts)
 
 
 if __name__ == '__main__':

@@ -22,6 +22,13 @@ class Binary(Expr):
 
 
 @dataclass
+class Call(Expr):
+    callee: Expr
+    paren: Token
+    args: list[Expr]
+
+
+@dataclass
 class Unary(Expr):
     operator: Token
     operand: Expr
@@ -64,6 +71,13 @@ class ExprStmt(Stmt):
 
 
 @dataclass
+class FunctionStmt(Stmt):
+    name: Token
+    params: list[Token]
+    body: list[Stmt]
+
+
+@dataclass
 class IfStmt(Stmt):
     cond: Expr
     then_branch: Stmt
@@ -74,6 +88,12 @@ class IfStmt(Stmt):
 class VarStmt(Stmt):
     name: Token
     init: Expr | None
+
+
+@dataclass
+class ReturnStmt(Stmt):
+    keyword: Token
+    value: Expr
 
 
 @dataclass
@@ -93,6 +113,9 @@ def format_ast(expr: Expr | Stmt) -> str:
             return f'(= {name.lexeme} {format_ast(value)})'
         case Binary(left, op, right):
             return f'({op.lexeme} {format_ast(left)} {format_ast(right)})'
+        case Call(callee, _, args):
+            args_fmt = ' '.join(format_ast(arg) for arg in args)
+            return f'({format_ast(callee)} {args_fmt})'
         case Unary(op, x):
             return f'({op.lexeme} {format_ast(x)})'
         case Grouping(e):
@@ -108,9 +131,15 @@ def format_ast(expr: Expr | Stmt) -> str:
             return f'(print {format_ast(e)})'
         case ExprStmt(e):
             return format_ast(e)
+        case FunctionStmt(name, params, body):
+            params_fmt = ' '.join(param.lexeme for param in params)
+            body_fmt = ' '.join(format_ast(stmt) for stmt in body)
+            return f'(def {name.lexeme} ({params_fmt}) {body_fmt})'
         case IfStmt(c, t, e):
             else_fmt = format_ast(e) if e else ''
             return f'(if {format_ast(c)} {format_ast(t)} {else_fmt})'
+        case ReturnStmt(_, v):
+            return f'(return {format_ast(v)})'
         case VarStmt(name, init):
             init_fmt = f' {format_ast(init)}' if init is not None else ''
             return f'(var {name.lexeme}{init_fmt})'

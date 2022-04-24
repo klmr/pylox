@@ -2,8 +2,8 @@ from collections.abc import Iterable
 from typing import cast
 
 from .ast import (
-    Assign, Binary, Block, Expr, ExprStmt, Grouping, IfStmt, Literal, Logical, PrintStmt, Stmt, Unary, VarStmt,
-    Variable, WhileStmt
+    Assign, Binary, Block, Call, Expr, ExprStmt, FunctionStmt, Grouping, IfStmt, Literal, Logical, PrintStmt,
+    ReturnStmt, Stmt, Unary, VarStmt, Variable, WhileStmt
 )
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
@@ -35,14 +35,20 @@ class Parser:
 
         return statements
 
+    def parse_expression(self) -> Expr:
+        return self._expression()
+
     def _declaration(self) -> Stmt | None:
         '''
         declaration -> var_decl
+                     | fun_decl
                      | statement ;
         '''
         try:
             if self._match_one_of(TT.VAR):
                 return self._var_decl()
+            elif self._match_one_of(TT.FUN):
+                return self._fun_decl("function")
             else:
                 return self._statement()
         except ParseError:
@@ -59,12 +65,36 @@ class Parser:
         self._consume(TT.SEMICOLON, 'Expected \';\' after variable declaration')
         return VarStmt(name, init)
 
+    def _fun_decl(self, kind: str) -> Stmt:
+        '''
+        fun_decl -> "fun" function ;
+        function -> IDENTIFIER "(" parameters? ")" block ;
+        parameters -> IDENTIFIER ( "," IDENTIFIERS )* ;
+        '''
+        name = self._consume(TT.IDENTIFIER, f'Expected {kind} name')
+        self._consume(TT.LEFT_PAREN, f'Expected \'(\' after {kind} name')
+        params: list[Token] = []
+
+        if not self._check(TT.RIGHT_PAREN):
+            while True:
+                if len(params) > 254:
+                    self._error(self._curr, 'Can’t have more than 255 parameters')
+                params.append(self._consume(TT.IDENTIFIER, 'Expected parameter name'))
+                if not self._match_one_of(TT.COMMA):
+                    break
+
+        self._consume(TT.RIGHT_PAREN, 'Expected \')\' after parameters')
+        self._consume(TT.LEFT_BRACE, f'Expected \'{{\' before {kind} body')
+        body = self._block()
+        return FunctionStmt(name, params, body)
+
     def _statement(self) -> Stmt:
         '''
         statement -> expr_stmt
                    | for_stmt
                    | if_stmt
                    | print_stmt
+                   | return_stmt
                    | while_stmt
                    | block ;
         '''
@@ -74,6 +104,8 @@ class Parser:
             return self._if_statement()
         elif self._match_one_of(TT.PRINT):
             return self._print_statement()
+        elif self._match_one_of(TT.RETURN):
+            return self._return_statement()
         elif self._match_one_of(TT.WHILE):
             return self._while_statement()
         elif self._match_one_of(TT.LEFT_BRACE):
@@ -144,6 +176,15 @@ class Parser:
         value = self._expression()
         self._consume(TT.SEMICOLON, 'Expected \';\' after value')
         return PrintStmt(value)
+
+    def _return_statement(self) -> Stmt:
+        '''
+        return_stmt -> "return" expression? ";" ;
+        '''
+        keyword = self._curr
+        value = None if self._check(TT.SEMICOLON) else self._expression()
+        self._consume(TT.SEMICOLON, 'Expected \';\' after return value')
+        return ReturnStmt(keyword, value)
 
     def _while_statement(self) -> Stmt:
         '''
@@ -264,7 +305,7 @@ class Parser:
         '''
         unary -> ("!" | "-" ) unary
                | "+" unary { error }
-               | primary
+               | call
         '''
         if op := self._match_one_of(TT.BANG, TT.MINUS):
             right = self._unary()
@@ -273,7 +314,22 @@ class Parser:
             self._unary()
             raise self._error(op, 'Prefix-plus is not supported')
         else:
-            return self._primary()
+            return self._call()
+
+    def _call(self) -> Expr:
+        '''
+        call -> primary ( "(" arguments? ")" )* ;
+        arguments -> expression ( "," expression )* ;
+        '''
+        expr = self._primary()
+
+        while True:
+            if self._match_one_of(TT.LEFT_PAREN):
+                expr = self._finish_call(expr)
+            else:
+                break
+
+        return expr
 
     def _primary(self) -> Expr:
         '''
@@ -298,6 +354,20 @@ class Parser:
             return Grouping(expr)
 
         raise self._error(self._curr, 'Expected expression.')
+
+    def _finish_call(self, callee: Expr) -> Expr:
+        args: list[Expr] = []
+
+        if not self._check(TT.RIGHT_PAREN):
+            while True:
+                if len(args) > 254:
+                    self._error(self._curr, 'Can’t have more than 255 arguments')
+                args.append(self._expression())
+                if not self._match_one_of(TT.COMMA):
+                    break
+
+        paren = self._consume(TT.RIGHT_PAREN, 'Expected \')\' after arguments')
+        return Call(callee, paren, args)
 
     def _match_one_of(self, *types: TT) -> Token | None:
         for type in types:

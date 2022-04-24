@@ -1,9 +1,7 @@
 from pathlib import Path
 import pytest
 
-import klmr.pylox
-
-from .log import MockLogger
+from . import run_test, run_script_test
 
 
 def test_scope(capsys: pytest.CaptureFixture):
@@ -12,7 +10,7 @@ def test_scope(capsys: pytest.CaptureFixture):
     with open(datadir / 'scope.expected', 'r') as file:
         expected = file.read()
 
-    klmr.pylox.run_script(script)
+    run_script_test(script)
     res = capsys.readouterr()
     assert res.err == ''
     assert res.out == expected
@@ -27,7 +25,7 @@ def test_scope_shadow(capsys: pytest.CaptureFixture):
     }
     print a;
     '''
-    klmr.pylox.run(script, MockLogger())
+    run_test(script)
     res = capsys.readouterr()
     assert res.err == ''
     assert res.out == '2\n1\n'
