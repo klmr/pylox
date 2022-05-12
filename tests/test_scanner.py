@@ -33,7 +33,7 @@ def parse_expected(file: Path) -> list[list[str]]:
         ]
 
 
-@pytest.mark.parametrize("file,expected", collect_test_cases())
+@pytest.mark.parametrize('file,expected', collect_test_cases())
 def test_scanner_with_code(file: str, expected: str):
     with open(file, 'r') as f:
         contents = f.read()

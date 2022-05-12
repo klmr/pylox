@@ -10,7 +10,7 @@ test_cases = ['fib1', 'dangling_else', 'count', 'add3', 'add2', 'hi', 'procedure
 datadir = Path(__file__).parent / 'data'
 
 
-@pytest.mark.parametrize("test_case", test_cases)
+@pytest.mark.parametrize('test_case', test_cases)
 def test_control(test_case: str, capsys: pytest.CaptureFixture):
     with open(datadir / f'{test_case}.expected', 'r') as file:
         expected = file.read()
