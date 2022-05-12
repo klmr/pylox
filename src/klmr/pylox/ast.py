@@ -93,7 +93,7 @@ class VarStmt(Stmt):
 @dataclass
 class ReturnStmt(Stmt):
     keyword: Token
-    value: Expr
+    value: Expr | None
 
 
 @dataclass
@@ -139,7 +139,7 @@ def format_ast(expr: Expr | Stmt) -> str:
             else_fmt = format_ast(e) if e else ''
             return f'(if {format_ast(c)} {format_ast(t)} {else_fmt})'
         case ReturnStmt(_, v):
-            return f'(return {format_ast(v)})'
+            return f'(return {format_ast(v) if v else ""})'
         case VarStmt(name, init):
             init_fmt = f' {format_ast(init)}' if init is not None else ''
             return f'(var {name.lexeme}{init_fmt})'
