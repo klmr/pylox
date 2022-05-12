@@ -4,104 +4,100 @@ from dataclasses import dataclass
 from .token import Token, TokenType
 
 
-class Expr(abc.ABC):
-    pass
+# A type for AST node classes that have reference semantics (despite being data classes) and thus
+# can be hashed and compared efficiently.
+class AstNodeType(abc.ABCMeta):
+    def __new__(mcls, name, bases, ns, **kwargs):
+        cls = super().__new__(mcls, name, bases, ns, **kwargs)
+        cls.__eq__ = lambda self, o: id(self) == id(o)
+        cls.__hash__ = lambda self: id(self)
+        return dataclass(eq = False)(cls)
 
 
-@dataclass
+class Expr(metaclass = AstNodeType):
+    # Needed to silence spurious mypy warning.
+    __match_args__ = ()
+
+
 class Assign(Expr):
     name: Token
     value: Expr
 
 
-@dataclass
 class Binary(Expr):
     left: Expr
     operator: Token
     right: Expr
 
 
-@dataclass
 class Call(Expr):
     callee: Expr
     paren: Token
     args: list[Expr]
 
 
-@dataclass
 class Unary(Expr):
     operator: Token
     operand: Expr
 
 
-@dataclass
 class Grouping(Expr):
     expr: Expr
 
 
-@dataclass
 class Literal(Expr):
     value: object
 
 
-@dataclass
 class Logical(Expr):
     left: Expr
     operator: Token
     right: Expr
 
 
-@dataclass
 class Variable(Expr):
     name: Token
 
 
-class Stmt(abc.ABC):
-    pass
+class Stmt(metaclass = AstNodeType):
+    # Needed to silence spurious mypy warning.
+    __match_args__ = ()
 
 
-@dataclass
 class PrintStmt(Stmt):
     expr: Expr
 
 
-@dataclass
 class ExprStmt(Stmt):
     expr: Expr
 
 
-@dataclass
 class FunctionStmt(Stmt):
     name: Token
     params: list[Token]
     body: list[Stmt]
 
 
-@dataclass
 class IfStmt(Stmt):
     cond: Expr
     then_branch: Stmt
     else_branch: Stmt | None
 
 
-@dataclass
 class VarStmt(Stmt):
     name: Token
     init: Expr | None
 
 
-@dataclass
 class ReturnStmt(Stmt):
     keyword: Token
     value: Expr | None
 
 
-@dataclass
 class Block(Stmt):
     stmts: list[Stmt]
 
 
-@dataclass
 class WhileStmt(Stmt):
     cond: Expr
     body: Stmt
