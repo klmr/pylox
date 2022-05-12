@@ -104,8 +104,8 @@ class Parser:
             return self._if_statement()
         elif self._match_one_of(TT.PRINT):
             return self._print_statement()
-        elif self._match_one_of(TT.RETURN):
-            return self._return_statement()
+        elif keyword := self._match_one_of(TT.RETURN):
+            return self._return_statement(keyword)
         elif self._match_one_of(TT.WHILE):
             return self._while_statement()
         elif self._match_one_of(TT.LEFT_BRACE):
@@ -177,11 +177,10 @@ class Parser:
         self._consume(TT.SEMICOLON, 'Expected \';\' after value')
         return PrintStmt(value)
 
-    def _return_statement(self) -> Stmt:
+    def _return_statement(self, keyword: Token) -> Stmt:
         '''
         return_stmt -> "return" expression? ";" ;
         '''
-        keyword = self._curr
         value = None if self._check(TT.SEMICOLON) else self._expression()
         self._consume(TT.SEMICOLON, 'Expected \';\' after return value')
         return ReturnStmt(keyword, value)
