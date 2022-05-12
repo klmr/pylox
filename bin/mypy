@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+if test -t 1; then
+    err() { printf '\e[31;1m%s\e[0m' "$1"; }
+    ok() { printf '\e[0;1m%s\e[0m' "$1"; }
+else
+    err() { echo "$1"; }
+    ok() { echo "$1"; }
+fi
+
+pluralize() {
+    local n=$1
+    local word=$2
+
+    if ((n == 1)); then
+        echo "$word"
+    else
+        echo "${3-${word}s}"
+    fi
+}
+
+output=$(mypy "$@")
+ret=$?
+
+if ((ret > 1)); then
+    [[ -n "$output" ]] && echo "$output"
+    exit $ret
+fi
+
+# mypy thinks that the AST node classes have constructors without any arguments.
+# So we ignore errors from just these classes.
+ast_classes=(
+    $(perl -ne '/^class (.*)\((Expr|Stmt)\)/ && print "$1\n"' src/klmr/pylox/ast.py)
+)
+ast_classes=$(sed 's/ /\\|/g' <<<"${ast_classes[*]}")
+
+output=$(
+    <<<"$output" grep -v \
+        -e 'error: Too many positional patterns for class pattern' \
+        -e "error: Too many arguments for \(\)\"\($ast_classes\)\""
+)
+
+all_files=$(tail -n 1 <<<"$output" | grep -o '(checked .* source files)' | grep -o '[[:digit:]]\{1,\}')
+output=$(sed '$d' <<<"$output")
+[[ -n $output ]] && echo "$output"
+errors=$(echo -n "$output" | grep -c ^)
+files=$(echo -n "$output" | cut -d : -f 1 | uniq | grep -c ^)
+
+if ((errors == 0)); then
+    ret=0
+    printf "$(ok 'Success: no issues found in %d %s')\n" "$all_files" "$(pluralize "$all_files" file)"
+else
+    printf "$(err 'Found %d %s in %d %s (checked %d source %s)\n')" \
+        "$errors" "$(pluralize "$errors" error)" \
+        "$files" "$(pluralize "$files" file)" \
+        "$all_files" "$(pluralize "$all_files" file)"
+fi
+
+exit $ret
