@@ -25,7 +25,7 @@ class Parser:
 
     def parse(self) -> list[Stmt]:
         '''
-        program -> statement* EOF ;
+        program -> declaration* EOF ;
         '''
         statements: list[Stmt] = []
         while not self._at_end():
