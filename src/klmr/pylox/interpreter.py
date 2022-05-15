@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 from collections.abc import Callable
 from inspect import signature
@@ -27,7 +28,7 @@ class LoxCallable(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __call__(self, interpreter: 'Interpreter', args: list[object]) -> object:
+    def __call__(self, interpreter: Interpreter, args: list[object]) -> object:
         pass
 
 
@@ -40,7 +41,7 @@ class LoxFunction(LoxCallable):
     def arity(self) -> int:
         return len(self._decl.params)
 
-    def __call__(self, interpreter: 'Interpreter', args: list[object]) -> object:
+    def __call__(self, interpreter: Interpreter, args: list[object]) -> object:
         env = Environment(self._enclosing)
         for param, arg in zip(self._decl.params, args):
             env.define(param.lexeme, arg)
