@@ -3,6 +3,7 @@ import sys
 from .interpreter import Interpreter
 from .log import LoxLogger
 from .parser import parse
+from .resolver import resolve
 from .scanner import scan
 
 
@@ -44,6 +45,11 @@ def run(code: str) -> None:
     stmts = parse(tokens, logger)
     if logger.had_error:
         return
+
+    resolve(logger, interpreter, stmts)
+    if logger.had_error:
+        return
+
     interpreter.interpret(stmts)
 
 

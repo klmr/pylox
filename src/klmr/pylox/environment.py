@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Final
+from typing import Final, cast
 
 from .log import LoxRuntimeError
 from .token import Token
@@ -22,10 +22,22 @@ class Environment:
             else:
                 raise LoxRuntimeError(name, f'Undefined variable \'{name.lexeme}\'')
 
+    def get_at(self, dist: int, name: str) -> object:
+        return self._ancestor(dist)._bindings[name]
+
     def assign(self, name: Token, value: object) -> None:
         if name.lexeme in self._bindings:
             self._bindings[name.lexeme] = value
         elif self._enclosing is not None:
             self._enclosing.assign(name, value)
         else:
-            raise RuntimeError(name, f'Undefined variable \'{name.lexeme}\'')
+            raise LoxRuntimeError(name, f'Undefined variable \'{name.lexeme}\'')
+
+    def assign_at(self, dist: int, name: Token, value: object) -> None:
+        self._ancestor(dist)._bindings[name.lexeme] = value
+
+    def _ancestor(self, dist: int) -> Environment:
+        env = self
+        for _ in range(dist):
+            env = cast(Environment, env._enclosing)
+        return env

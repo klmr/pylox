@@ -59,6 +59,7 @@ class Interpreter:
     def __init__(self, logger: Logger) -> None:
         self._globals = Environment()
         self._env = self._globals
+        self._locals: dict[Expr, int] = {}
         self._logger = logger
 
         for name, fun in _native_funs.items():
@@ -78,6 +79,9 @@ class Interpreter:
         except LoxRuntimeError as e:
             self._logger.runtime_error(e)
             return None
+
+    def resolve(self, expr: Expr, depth: int) -> None:
+        self._locals[expr] = depth
 
     def _execute(self, stmt: Stmt) -> None:
         match stmt:
@@ -128,10 +132,10 @@ class Interpreter:
             case Logical():
                 return self._visit_logical(expr)
             case Variable(name):
-                return self._env.get(name)
+                return self._lookup_variable(name, expr)
             case Assign(name, e):
                 value = self._evaluate(e)
-                self._env.assign(name, value)
+                self._assign_variable(name, expr, value)
                 return value
             case Call():
                 return self._visit_call(expr)
@@ -218,6 +222,20 @@ class Interpreter:
         if len(args) != callee.arity:
             raise LoxRuntimeError(expr.paren, f'Expected {callee.arity} arguments but got {len(args)}')
         return callee(self, args)
+
+    def _lookup_variable(self, name: Token, expr: Expr) -> object:
+        dist = self._locals.get(expr)
+        if dist is not None:
+            return self._env.get_at(dist, name.lexeme)
+        else:
+            return self._globals.get(name)
+
+    def _assign_variable(self, name: Token, expr: Expr, value: object) -> None:
+        dist = self._locals.get(expr)
+        if dist is not None:
+            self._env.assign_at(dist, name, value)
+        else:
+            self._globals.assign(name, value)
 
 
 def _is_truthy(x: object) -> bool:
