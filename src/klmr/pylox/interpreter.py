@@ -86,6 +86,8 @@ class Interpreter:
 
     def _execute(self, stmt: Stmt) -> None:
         match stmt:
+            case Block(stmts):
+                self._execute_block(stmts, Environment(self._env))
             case ExprStmt(expr):
                 self._evaluate(expr)
             case FunctionStmt(name, _, _) as fdef:
@@ -108,8 +110,6 @@ class Interpreter:
             case WhileStmt(cond, body):
                 while _is_truthy(self._evaluate(cond)):
                     self._execute(body)
-            case Block(stmts):
-                self._execute_block(stmts, Environment(self._env))
 
     def _execute_block(self, stmts: list[Stmt], env: Environment) -> None:
         prev = self._env
@@ -122,24 +122,24 @@ class Interpreter:
 
     def _evaluate(self, expr: Expr) -> object:
         match expr:
-            case Literal(x):
-                return x
-            case Grouping(x):
-                return self._evaluate(x)
-            case Unary():
-                return self._visit_unary(expr)
-            case Binary():
-                return self._visit_binary(expr)
-            case Logical():
-                return self._visit_logical(expr)
-            case Variable(name):
-                return self._lookup_variable(name, expr)
             case Assign(name, e):
                 value = self._evaluate(e)
                 self._assign_variable(name, expr, value)
                 return value
+            case Binary():
+                return self._visit_binary(expr)
             case Call():
                 return self._visit_call(expr)
+            case Literal(x):
+                return x
+            case Logical():
+                return self._visit_logical(expr)
+            case Grouping(x):
+                return self._evaluate(x)
+            case Unary():
+                return self._visit_unary(expr)
+            case Variable(name):
+                return self._lookup_variable(name, expr)
 
         assert False, 'Unhandled expr'
 

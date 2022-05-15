@@ -32,56 +32,56 @@ class Resolver:
         match x:
             case None:
                 pass
+            case Assign(name, value):
+                self.resolve(value)
+                self._resolve_local(x, name)
+            case Binary(left, _, right):
+                self.resolve(left)
+                self.resolve(right)
             case Block(stmts):
                 self._begin_scope()
                 self.resolve_stmts(stmts)
                 self._end_scope()
-            case VarStmt(name, init):
-                self._declare(name)
-                self.resolve(init)
-                self._define(name)
-            case Variable(name):
-                if self._scopes and self._scopes[-1].get(name.lexeme) is False:
-                    self._logger.parse_error(name, 'Can’t read local variable in its own initializer')
-                self._resolve_local(x, name)
-            case Assign(name, value):
-                self.resolve(value)
-                self._resolve_local(x, name)
+            case Call(callee, _, args):
+                self.resolve(callee)
+                for arg in args:
+                    self.resolve(arg)
+            case ExprStmt(expr):
+                self.resolve(expr)
             case FunctionStmt(name, params, body):
                 self._declare(name)
                 self._define(name)
                 self._resolve_fun(params, body, FunctionType.FUNCTION)
-            case ExprStmt(expr):
+            case Grouping(expr):
                 self.resolve(expr)
             case IfStmt(cond, then_branch, else_branch):
                 self.resolve(cond)
                 self.resolve(then_branch)
                 self.resolve(else_branch)
+            case Literal():
+                pass
+            case Logical(left, _, right):
+                self.resolve(left)
+                self.resolve(right)
             case PrintStmt(expr):
                 self.resolve(expr)
             case ReturnStmt(keyword, value):
                 if self._current_fun == FunctionType.NONE:
                     self._logger.parse_error(keyword, 'Can’t return from top-level code')
                 self.resolve(value)
+            case Unary(_, expr):
+                self.resolve(expr)
+            case Variable(name):
+                if self._scopes and self._scopes[-1].get(name.lexeme) is False:
+                    self._logger.parse_error(name, 'Can’t read local variable in its own initializer')
+                self._resolve_local(x, name)
+            case VarStmt(name, init):
+                self._declare(name)
+                self.resolve(init)
+                self._define(name)
             case WhileStmt(cond, body):
                 self.resolve(cond)
                 self.resolve(body)
-            case Binary(left, _, right):
-                self.resolve(left)
-                self.resolve(right)
-            case Call(callee, _, args):
-                self.resolve(callee)
-                for arg in args:
-                    self.resolve(arg)
-            case Grouping(expr):
-                self.resolve(expr)
-            case Literal():
-                pass
-            case Logical(left, _, right):
-                self.resolve(left)
-                self.resolve(right)
-            case Unary(_, expr):
-                self.resolve(expr)
 
     def _begin_scope(self) -> None:
         self._scopes.append({})
