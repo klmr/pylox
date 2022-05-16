@@ -12,7 +12,7 @@ def resolve(logger: Logger, interpreter: Interpreter, stmts: list[Stmt]) -> None
     return Resolver(logger, interpreter).resolve_stmts(stmts)
 
 
-class FunctionType(Enum):
+class _FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
 
@@ -20,7 +20,7 @@ class FunctionType(Enum):
 class Resolver:
     def __init__(self, logger: Logger, interpreter: Interpreter) -> None:
         self._scopes: list[dict[str, bool]] = []
-        self._current_fun = FunctionType.NONE
+        self._current_fun = _FunctionType.NONE
         self._logger = logger
         self._interpreter = interpreter
 
@@ -51,7 +51,9 @@ class Resolver:
             case FunctionStmt(name, params, body):
                 self._declare(name)
                 self._define(name)
-                self._resolve_fun(params, body, FunctionType.FUNCTION)
+                self._resolve_fun(params, body, _FunctionType.FUNCTION)
+            case Get(object, _):
+                self.resolve(object)
             case Grouping(expr):
                 self.resolve(expr)
             case IfStmt(cond, then_branch, else_branch):
@@ -66,7 +68,7 @@ class Resolver:
             case PrintStmt(expr):
                 self.resolve(expr)
             case ReturnStmt(keyword, value):
-                if self._current_fun == FunctionType.NONE:
+                if self._current_fun == _FunctionType.NONE:
                     self._logger.parse_error(keyword, 'Can’t return from top-level code')
                 self.resolve(value)
             case Unary(_, expr):
@@ -111,7 +113,7 @@ class Resolver:
                 self._interpreter.resolve(expr, depth - i)
                 return
 
-    def _resolve_fun(self, params: list[Token], body: list[Stmt], type: FunctionType) -> None:
+    def _resolve_fun(self, params: list[Token], body: list[Stmt], type: _FunctionType) -> None:
         enclosing_fun = self._current_fun
         self._current_fun = type
         self._begin_scope()

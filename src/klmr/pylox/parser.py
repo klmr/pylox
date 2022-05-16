@@ -13,7 +13,7 @@ def parse(tokens: Iterable[Token], logger: Logger) -> list[Stmt]:
     return Parser(tokens, logger).parse()
 
 
-class ParseError(RuntimeError):
+class _ParseError(RuntimeError):
     pass
 
 
@@ -51,7 +51,7 @@ class Parser:
                 return self._fun_decl("function")
             else:
                 return self._statement()
-        except ParseError:
+        except _ParseError:
             self._synchronize()
             return None
 
@@ -352,7 +352,7 @@ class Parser:
             self._consume(TT.RIGHT_PAREN, 'Expected \')\' after expression')
             return Grouping(expr)
 
-        raise self._error(self._curr, 'Expected expression.')
+        raise self._error(self._curr, 'Expected expression')
 
     def _finish_call(self, callee: Expr) -> Expr:
         args: list[Expr] = []
@@ -391,9 +391,9 @@ class Parser:
             return self._advance()
         raise self._error(self._curr, error_msg)
 
-    def _error(self, token: Token, error_msg: str) -> ParseError:
+    def _error(self, token: Token, error_msg: str) -> _ParseError:
         self._logger.parse_error(token, error_msg)
-        return ParseError()
+        return _ParseError()
 
     def _synchronize(self) -> None:
         prev = self._advance()
