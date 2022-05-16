@@ -141,7 +141,7 @@ class Interpreter:
             case Variable(name):
                 return self._lookup_variable(name, expr)
 
-        assert False, 'Unhandled expr'
+        assert False, f'Unhandled expr {expr}'
 
     def _visit_unary(self, expr: Unary) -> object:
         operand = self._evaluate(expr.operand)
@@ -153,7 +153,7 @@ class Interpreter:
             case TokenType.BANG:
                 return not _is_truthy(operand)
 
-        assert False, 'Unhandled unary operator'
+        assert False, f'Unhandled unary operator {expr.operator.type}'
 
     def _visit_binary(self, expr: Binary) -> object:
         left = self._evaluate(expr.left)
@@ -196,7 +196,7 @@ class Interpreter:
 
                 raise LoxRuntimeError(op, 'Operands must be two numbers or two strings')
 
-        assert False, 'Unhandled binary operator'
+        assert False, f'Unhandled binary operator {op.type}'
 
     def _visit_logical(self, expr: Logical) -> object:
         left = self._evaluate(expr.left)
