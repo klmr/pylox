@@ -4,7 +4,7 @@ import pytest
 import klmr.pylox.scanner
 from klmr.pylox.token import TokenType
 
-from .log import MockLogger
+from .log import LoxParseError, MockLogger
 
 
 def scan(source: str):
@@ -50,10 +50,10 @@ def test_scanner_with_code(file: str, expected: str):
 
 
 def test_fail_unterminated_string():
-    with pytest.raises(ValueError, match='Unterminated string'):
+    with pytest.raises(LoxParseError, match = 'Unterminated string'):
         scan('"test')
 
 
 def test_fail_unespected_char():
-    with pytest.raises(ValueError, match='Unexpected character'):
+    with pytest.raises(LoxParseError, match = 'Unexpected character'):
         scan('1/?')

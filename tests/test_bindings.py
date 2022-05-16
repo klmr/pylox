@@ -1,6 +1,8 @@
 from pathlib import Path
 import pytest
 
+from tests.log import LoxParseError
+
 from . import run_script_test, run_test
 
 
@@ -27,7 +29,7 @@ def test_init_cannot_self_reference():
     }
     '''
 
-    with pytest.raises(ValueError, match = 'Can’t read local variable in its own initializer'):
+    with pytest.raises(LoxParseError, match = 'Can’t read local variable in its own initializer'):
         run_test(code)
 
 
@@ -39,7 +41,7 @@ def test_local_redefinition_error():
     }
     '''
 
-    with pytest.raises(ValueError, match = 'Already a variable with this name in scope'):
+    with pytest.raises(LoxParseError, match = 'Already a variable with this name in scope'):
         run_test(code)
 
 
@@ -48,5 +50,5 @@ def test_top_level_return_error():
     return "at top level";
     '''
 
-    with pytest.raises(ValueError, match = 'at return: Can’t return from top-level code'):
+    with pytest.raises(LoxParseError, match = 'at return: Can’t return from top-level code'):
         run_test(code)
