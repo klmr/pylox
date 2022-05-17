@@ -1,7 +1,7 @@
 from enum import Enum
 from .ast import (
-    Assign, Binary, Block, Call, Expr, ExprStmt, FunctionStmt, Grouping, IfStmt, Literal, Logical, PrintStmt,
-    ReturnStmt, Stmt, Unary, VarStmt, Variable, WhileStmt
+    Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
+    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .interpreter import Interpreter
 from .log import Logger
@@ -12,15 +12,23 @@ def resolve(logger: Logger, interpreter: Interpreter, stmts: list[Stmt]) -> None
     return Resolver(logger, interpreter).resolve_stmts(stmts)
 
 
+class _ClassType(Enum):
+    NONE = 0,
+    CLASS = 1
+
+
 class _FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
+    INITIALIZER = 2
+    METHOD = 3
 
 
 class Resolver:
     def __init__(self, logger: Logger, interpreter: Interpreter) -> None:
         self._scopes: list[dict[str, bool]] = []
         self._current_fun = _FunctionType.NONE
+        self._current_class = _ClassType.NONE
         self._logger = logger
         self._interpreter = interpreter
 
@@ -30,7 +38,7 @@ class Resolver:
 
     def resolve(self, x: Expr | Stmt | None) -> None:
         match x:
-            case None:
+            case None | Literal():
                 pass
             case Assign(name, value):
                 self.resolve(value)
@@ -46,6 +54,22 @@ class Resolver:
                 self.resolve(callee)
                 for arg in args:
                     self.resolve(arg)
+            case Class(name, methods):
+                enclosing_class = self._current_class
+                self._current_class = _ClassType.CLASS
+
+                self._declare(name)
+                self._define(name)
+
+                self._begin_scope()
+                self._scopes[-1]['this'] = True
+
+                for method in methods:
+                    decl = _FunctionType.INITIALIZER if method.name.lexeme == 'init' else _FunctionType.METHOD
+                    self._resolve_fun(method.params, method.body, decl)
+
+                self._end_scope()
+                self._current_class = enclosing_class
             case ExprStmt(expr):
                 self.resolve(expr)
             case FunctionStmt(name, params, body):
@@ -60,8 +84,6 @@ class Resolver:
                 self.resolve(cond)
                 self.resolve(then_branch)
                 self.resolve(else_branch)
-            case Literal():
-                pass
             case Logical(left, _, right):
                 self.resolve(left)
                 self.resolve(right)
@@ -70,7 +92,16 @@ class Resolver:
             case ReturnStmt(keyword, value):
                 if self._current_fun == _FunctionType.NONE:
                     self._logger.parse_error(keyword, 'Can’t return from top-level code')
+                if value and self._current_fun == _FunctionType.INITIALIZER:
+                    self._logger.parse_error(keyword, 'Can’t return a value from an initializer')
                 self.resolve(value)
+            case Set(object, _, value):
+                self.resolve(value)
+                self.resolve(object)
+            case This(keyword):
+                if self._current_class == _ClassType.NONE:
+                    self._logger.parse_error(keyword, 'Can’t use \'this\' outside of a class')
+                self._resolve_local(x, keyword)
             case Unary(_, expr):
                 self.resolve(expr)
             case Variable(name):

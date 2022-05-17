@@ -1,9 +1,8 @@
 from collections.abc import Iterable
-from typing import cast
 
 from .ast import (
-    Assign, Binary, Block, Call, Expr, ExprStmt, FunctionStmt, Grouping, IfStmt, Literal, Logical, PrintStmt,
-    ReturnStmt, Stmt, Unary, VarStmt, Variable, WhileStmt
+    Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
+    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
@@ -40,11 +39,14 @@ class Parser:
 
     def _declaration(self) -> Stmt | None:
         '''
-        declaration -> var_decl
+        declaration -> class_decl
+                     | var_decl
                      | fun_decl
                      | statement ;
         '''
         try:
+            if self._match_one_of(TT.CLASS):
+                return self._class_decl()
             if self._match_one_of(TT.VAR):
                 return self._var_decl()
             elif self._match_one_of(TT.FUN):
@@ -54,6 +56,20 @@ class Parser:
         except _ParseError:
             self._synchronize()
             return None
+
+    def _class_decl(self) -> Stmt:
+        '''
+        class_decl -> "class" IDENTIFIER "{" function* "}" ;
+        '''
+        name = self._consume(TT.IDENTIFIER, 'Expected class name')
+        self._consume(TT.LEFT_BRACE, 'Expected \'{\' before class body')
+
+        methods = []
+        while not self._check(TT.RIGHT_BRACE) and not self._at_end():
+            methods.append(self._fun_decl('method'))
+
+        self._consume(TT.RIGHT_BRACE, 'Expected \'}\' after class body')
+        return Class(name, methods)
 
     def _var_decl(self) -> Stmt:
         '''
@@ -217,7 +233,7 @@ class Parser:
 
     def _assignment(self) -> Expr:
         '''
-        assignment -> IDENTIFIER "=" assignment
+        assignment -> ( call "." )? IDENTIFIER "=" assignment
                     | logical_or ;
         '''
         expr = self._or()
@@ -225,8 +241,9 @@ class Parser:
             value = self._assignment()
 
             if isinstance(expr, Variable):
-                name = cast(Variable, expr).name
-                return Assign(name, value)
+                return Assign(expr.name, value)
+            elif isinstance(expr, Get):
+                return Set(expr.object, expr.name, value)
 
             self._error(eq, f'Invalid assignment target {expr}')
 
@@ -317,7 +334,7 @@ class Parser:
 
     def _call(self) -> Expr:
         '''
-        call -> primary ( "(" arguments? ")" )* ;
+        call -> primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
         arguments -> expression ( "," expression )* ;
         '''
         expr = self._primary()
@@ -325,6 +342,9 @@ class Parser:
         while True:
             if self._match_one_of(TT.LEFT_PAREN):
                 expr = self._finish_call(expr)
+            elif self._match_one_of(TT.DOT):
+                name = self._consume(TT.IDENTIFIER, 'Expected property name after \'.\'')
+                expr = Get(expr, name)
             else:
                 break
 
@@ -332,7 +352,7 @@ class Parser:
 
     def _primary(self) -> Expr:
         '''
-        primary -> "true" | "false" | "nil"
+        primary -> "true" | "false" | "nil" | "this"
                  | NUMBER | STRING
                  | IDENTIFIER
                  | "(" expression ")" ;
@@ -345,6 +365,8 @@ class Parser:
             return Literal(None)
         elif lit := self._match_one_of(TT.NUMBER, TT.STRING):
             return Literal(lit.literal)
+        elif keyword := self._match_one_of(TT.THIS):
+            return This(keyword)
         elif var := self._match_one_of(TT.IDENTIFIER):
             return Variable(var)
         elif self._match_one_of(TT.LEFT_PAREN):

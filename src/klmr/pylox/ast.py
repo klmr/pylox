@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 from dataclasses import dataclass
 
@@ -36,6 +37,11 @@ class Call(Expr):
     args: list[Expr]
 
 
+class Get(Expr):
+    object: Expr
+    name: Token
+
+
 class Grouping(Expr):
     expr: Expr
 
@@ -48,6 +54,16 @@ class Logical(Expr):
     left: Expr
     operator: Token
     right: Expr
+
+
+class Set(Expr):
+    object: Expr
+    name: Token
+    value: Expr
+
+
+class This(Expr):
+    keyword: Token
 
 
 class Unary(Expr):
@@ -66,6 +82,11 @@ class Stmt(metaclass = AstNodeType):
 
 class Block(Stmt):
     stmts: list[Stmt]
+
+
+class Class(Stmt):
+    name: Token
+    methods: list[FunctionStmt]
 
 
 class ExprStmt(Stmt):
@@ -112,12 +133,18 @@ def format_ast(expr: Expr | Stmt) -> str:
         case Call(callee, _, args):
             args_fmt = ' '.join(format_ast(arg) for arg in args)
             return f'({format_ast(callee)} {args_fmt})'
+        case Get(object, name):
+            return f'(. {format_ast(object)} {name.lexeme})'
         case Grouping(e):
             return f'(group {format_ast(e)})'
         case Literal(x):
             return str(x)
         case Logical(x):
             return f'({op.lexeme} {format_ast(left)} {format_ast(right)})'
+        case Set(object, name, value):
+            return f'(= (. {format_ast(object)} {name.lexeme}) {format_ast(value)})'
+        case This(_):
+            return 'this'
         case Unary(op, x):
             return f'({op.lexeme} {format_ast(x)})'
         case Variable(name):
@@ -126,6 +153,9 @@ def format_ast(expr: Expr | Stmt) -> str:
         case Block(stmts):
             stmts_fmt = ' '.join(format_ast(stmt) for stmt in stmts)
             return f'({{ {stmts_fmt})'
+        case Class(name, methods):
+            methods_fmt = ' '.join(format_ast(method) for method in methods)
+            return f'(class {name.lexeme} {methods_fmt})'
         case ExprStmt(e):
             return format_ast(e)
         case FunctionStmt(name, params, body):

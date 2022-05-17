@@ -6,8 +6,8 @@ import time
 from typing import Concatenate, ParamSpec, cast
 
 from .ast import (
-    Assign, Binary, Block, Call, Expr, ExprStmt, FunctionStmt, Grouping, IfStmt, Literal, Logical, PrintStmt,
-    ReturnStmt, Stmt, Unary, VarStmt, Variable, WhileStmt
+    Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
+    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .environment import Environment
 from .log import Logger, LoxRuntimeError
@@ -36,9 +36,15 @@ class LoxFunction(LoxCallable):
     # I’ve changed the nomenclature (“closure” -> “enclosing”) here, because I believe that the
     # nomenclature used in the book is incorrect: a closure is the thing that *carries* an enclosing
     # environment, i.e. the function itself.
-    def __init__(self, decl: FunctionStmt, enclosing: Environment) -> None:
+    def __init__(self, decl: FunctionStmt, enclosing: Environment, is_init: bool) -> None:
         self._decl = decl
         self._enclosing = enclosing
+        self._is_init = is_init
+
+    def bind(self, instance: LoxInstance) -> LoxFunction:
+        env = Environment(self._enclosing)
+        env.define('this', instance)
+        return LoxFunction(self._decl, env, self._is_init)
 
     @property
     def arity(self) -> int:
@@ -52,11 +58,61 @@ class LoxFunction(LoxCallable):
         try:
             interpreter._execute_block(self._decl.body, env)
         except Return as ret:
+            if self._is_init:
+                return self._enclosing.get_at(0, "this")
             return ret.value
+
+        if self._is_init:
+            return self._enclosing.get_at(0, "this")
         return None
 
     def __str__(self) -> str:
         return f'‹fun {self._decl.name.lexeme}›'
+
+
+class LoxInstance:
+    def __init__(self, cls: LoxClass) -> None:
+        self.cls = cls
+        self.fields: dict[str, object] = {}
+
+    def get(self, name: Token) -> object:
+        try:
+            return self.fields[name.lexeme]
+        except KeyError:
+            method = self.cls.find_method(name.lexeme)
+            if method:
+                return method.bind(self)
+            raise LoxRuntimeError(name, f'Undefined property \'{name.lexeme}\'')
+
+    def set(self, name: Token, value: object) -> None:
+        self.fields[name.lexeme] = value
+
+    def __str__(self) -> str:
+        return f'‹{self.cls.name} instance›'
+
+
+class LoxClass(LoxCallable):
+    def __init__(self, name: str, methods: dict[str, LoxFunction]) -> None:
+        self.name = name
+        self.methods = methods
+
+    def find_method(self, name: str) -> LoxFunction | None:
+        return self.methods.get(name)
+
+    @property
+    def arity(self) -> int:
+        init = self.find_method("init")
+        return init.arity if init else 0
+
+    def __call__(self, interpreter: Interpreter, args: list[object]) -> object:
+        instance = LoxInstance(self)
+        init = self.find_method("init")
+        if init:
+            init.bind(instance)(interpreter, args)
+        return instance
+
+    def __str__(self) -> str:
+        return f'‹class {self.name}›'
 
 
 class Interpreter:
@@ -91,10 +147,19 @@ class Interpreter:
         match stmt:
             case Block(stmts):
                 self._execute_block(stmts, Environment(self._env))
+            case Class(name, methods):
+                self._env.define(name.lexeme, None)
+
+                defined_methods = {
+                    method.name.lexeme: LoxFunction(method, self._env, method.name.lexeme == 'init')
+                    for method in methods
+                }
+                cls = LoxClass(name.lexeme, defined_methods)
+                self._env.assign(name, cls)
             case ExprStmt(expr):
                 self._evaluate(expr)
             case FunctionStmt(name, _, _) as fdef:
-                function = LoxFunction(fdef, self._env)
+                function = LoxFunction(fdef, self._env, False)
                 self._env.define(name.lexeme, function)
             case IfStmt(cond, then_branch, else_branch):
                 if _is_truthy(self._evaluate(cond)):
@@ -125,20 +190,35 @@ class Interpreter:
 
     def _evaluate(self, expr: Expr) -> object:
         match expr:
-            case Assign(name, e):
-                value = self._evaluate(e)
-                self._assign_variable(name, expr, value)
+            case Assign(name, value):
+                val = self._evaluate(value)
+                self._assign_variable(name, expr, val)
                 return value
             case Binary():
                 return self._visit_binary(expr)
             case Call():
                 return self._visit_call(expr)
+            case Get(object, name):
+                obj = self._evaluate(object)
+                if not isinstance(obj, LoxInstance):
+                    raise LoxRuntimeError(name, 'Only instances have properties')
+                return obj.get(name)
+            case Grouping(x):
+                return self._evaluate(x)
             case Literal(x):
                 return x
             case Logical():
                 return self._visit_logical(expr)
-            case Grouping(x):
-                return self._evaluate(x)
+            case Set(object, name, value):
+                obj = self._evaluate(object)
+                if not isinstance(obj, LoxInstance):
+                    raise LoxRuntimeError(name, 'Only instances have fields')
+
+                val = self._evaluate(value)
+                obj.set(name, val)
+                return val
+            case This(keyword):
+                return self._lookup_variable(keyword, expr)
             case Unary():
                 return self._visit_unary(expr)
             case Variable(name):
