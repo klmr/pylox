@@ -33,6 +33,9 @@ class LoxCallable(abc.ABC):
 
 
 class LoxFunction(LoxCallable):
+    # I’ve changed the nomenclature (“closure” -> “enclosing”) here, because I believe that the
+    # nomenclature used in the book is incorrect: a closure is the thing that *carries* an enclosing
+    # environment, i.e. the function itself.
     def __init__(self, decl: FunctionStmt, enclosing: Environment) -> None:
         self._decl = decl
         self._enclosing = enclosing
