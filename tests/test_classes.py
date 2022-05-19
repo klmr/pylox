@@ -5,7 +5,7 @@ from klmr.pylox.parser import parse
 from klmr.pylox.scanner import scan
 
 from . import run_script_test, run_test
-from .log import LoxParseError, MockLogger
+from .log import LoxSyntaxError, MockLogger
 
 
 test_cases = [
@@ -62,7 +62,7 @@ def test_can_parse_get_expr(test_case: str):
 def test_invalid_top_level_return():
     code = 'print this;'
 
-    with pytest.raises(LoxParseError, match = 'Can’t use \'this\' outside of a class'):
+    with pytest.raises(LoxSyntaxError, match = 'Can’t use \'this\' outside of a class'):
         run_test(code)
 
 
@@ -73,7 +73,7 @@ def test_invalid_unbound_this():
     }
     '''
 
-    with pytest.raises(LoxParseError, match = 'Can’t use \'this\' outside of a class'):
+    with pytest.raises(LoxSyntaxError, match = 'Can’t use \'this\' outside of a class'):
         run_test(code)
 
 
@@ -86,5 +86,5 @@ def test_invalid_init_return():
     }
     '''
 
-    with pytest.raises(LoxParseError, match = 'Can’t return a value from an initializer'):
+    with pytest.raises(LoxSyntaxError, match = 'Can’t return a value from an initializer'):
         run_test(code)
