@@ -1,7 +1,7 @@
 from enum import Enum
 from .ast import (
     Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
-    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
+    PrintStmt, ReturnStmt, Set, Stmt, Super, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .interpreter import Interpreter
 from .log import Logger
@@ -15,6 +15,7 @@ def resolve(logger: Logger, interpreter: Interpreter, stmts: list[Stmt]) -> None
 class _ClassType(Enum):
     NONE = 0,
     CLASS = 1
+    SUBCLASS = 2
 
 
 class _FunctionType(Enum):
@@ -54,12 +55,22 @@ class Resolver:
                 self.resolve(callee)
                 for arg in args:
                     self.resolve(arg)
-            case Class(name, methods):
+            case Class(name, superclass, methods):
                 enclosing_class = self._current_class
                 self._current_class = _ClassType.CLASS
 
                 self._declare(name)
                 self._define(name)
+
+                if superclass:
+                    if name.lexeme == superclass.name.lexeme:
+                        self._logger.parse_error(superclass.name, 'a class can’t inherit from itself')
+
+                    self._current_class = _ClassType.SUBCLASS
+                    self.resolve(superclass)
+
+                    self._begin_scope()
+                    self._scopes[-1]['super'] = True
 
                 self._begin_scope()
                 self._scopes[-1]['this'] = True
@@ -69,6 +80,8 @@ class Resolver:
                     self._resolve_fun(method.params, method.body, decl)
 
                 self._end_scope()
+                if superclass:
+                    self._end_scope()
                 self._current_class = enclosing_class
             case ExprStmt(expr):
                 self.resolve(expr)
@@ -98,6 +111,12 @@ class Resolver:
             case Set(object, _, value):
                 self.resolve(value)
                 self.resolve(object)
+            case Super(keyword, _):
+                if self ._current_class == _ClassType.NONE:
+                    self._logger.parse_error(keyword, 'Can’t use \'super\' outside of a class')
+                elif self._current_class != _ClassType.SUBCLASS:
+                    self._logger.parse_error(keyword, 'Can’t use \'super\' in a class with no superclass')
+                self._resolve_local(x, keyword)
             case This(keyword):
                 if self._current_class == _ClassType.NONE:
                     self._logger.parse_error(keyword, 'Can’t use \'this\' outside of a class')

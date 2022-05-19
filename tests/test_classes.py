@@ -1,5 +1,6 @@
 from pathlib import Path
 import pytest
+from klmr.pylox.log import LoxRuntimeError
 
 from klmr.pylox.parser import parse
 from klmr.pylox.scanner import scan
@@ -10,7 +11,7 @@ from .log import LoxSyntaxError, MockLogger
 
 test_cases = [
     'breakfast', 'cream', 'bagel', 'not_method', 'jane', 'bill', 'bacon', 'egotist', 'cake', 'thing', 'init',
-    'init-return'
+    'init-return', 'doughnut', 'super'
 ]
 datadir = Path(__file__).parent / 'data'
 
@@ -50,7 +51,8 @@ def test_can_create_object():
 parse_tests = [
     'egg.scramble(3).with(cheddar);',
     'someObject.someProperty = value;'
-    'breakfast.omelette.filling.meat = ham;'
+    'breakfast.omelette.filling.meat = ham;',
+    'var method = super.cook; method();'
 ]
 
 
@@ -87,4 +89,50 @@ def test_invalid_init_return():
     '''
 
     with pytest.raises(LoxSyntaxError, match = 'Can’t return a value from an initializer'):
+        run_test(code)
+
+
+def test_class_inherits_from_itself():
+    code = 'class Oops < Oops {}'
+
+    with pytest.raises(LoxSyntaxError, match = 'a class can’t inherit from itself'):
+        run_test(code)
+
+
+def test_superclass_must_be_class():
+    code = '''
+    var NotAClass = "I am totally not a class";
+
+    class Subclass < NotAClass {} // ?!
+    '''
+
+    with pytest.raises(LoxRuntimeError, match = 'Superclass must name a class'):
+        run_test(code)
+
+
+def test_super_in_invalid_context():
+    code = 'print super; // Syntax error.'
+
+    with pytest.raises(LoxSyntaxError, match = 'Expected \'.\' after \'super\''):
+        run_test(code)
+
+
+def test_super_without_superclass():
+    code = '''
+    class Eclair {
+      cook() {
+        super.cook();
+        print "Pipe full of crème pâtissière.";
+      }
+    }
+    '''
+
+    with pytest.raises(LoxSyntaxError, match = ''):
+        run_test(code)
+
+
+def test_super_outside_class():
+    code = 'super.notEvenInAClass();'
+
+    with pytest.raises(LoxSyntaxError, match = ''):
         run_test(code)

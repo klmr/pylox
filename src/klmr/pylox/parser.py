@@ -2,7 +2,7 @@ from collections.abc import Iterable
 
 from .ast import (
     Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
-    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
+    PrintStmt, ReturnStmt, Set, Stmt, Super, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .log import Logger, LoxLogger
 from .token import Token, TokenType as TT
@@ -59,9 +59,15 @@ class Parser:
 
     def _class_decl(self) -> Stmt:
         '''
-        class_decl -> "class" IDENTIFIER "{" function* "}" ;
+        class_decl -> "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
         '''
         name = self._consume(TT.IDENTIFIER, 'Expected class name')
+
+        if self._match_one_of(TT.LT):
+            superclass = Variable(self._consume(TT.IDENTIFIER, 'Expected superclass name'))
+        else:
+            superclass = None
+
         self._consume(TT.LEFT_BRACE, 'Expected \'{\' before class body')
 
         methods = []
@@ -69,7 +75,7 @@ class Parser:
             methods.append(self._fun_decl('method'))
 
         self._consume(TT.RIGHT_BRACE, 'Expected \'}\' after class body')
-        return Class(name, methods)
+        return Class(name, superclass, methods)
 
     def _var_decl(self) -> Stmt:
         '''
@@ -319,7 +325,7 @@ class Parser:
 
     def _unary(self) -> Expr:
         '''
-        unary -> ("!" | "-" ) unary
+        unary -> ( "!" | "-" ) unary
                | "+" unary { error }
                | call
         '''
@@ -355,7 +361,8 @@ class Parser:
         primary -> "true" | "false" | "nil" | "this"
                  | NUMBER | STRING
                  | IDENTIFIER
-                 | "(" expression ")" ;
+                 | "(" expression ")"
+                 | "super" "." IDENTIFIER ;
         '''
         if self._match_one_of(TT.FALSE):
             return Literal(False)
@@ -365,6 +372,10 @@ class Parser:
             return Literal(None)
         elif lit := self._match_one_of(TT.NUMBER, TT.STRING):
             return Literal(lit.literal)
+        elif keyword := self._match_one_of(TT.SUPER):
+            self._consume(TT.DOT, 'Expected \'.\' after \'super\'')
+            method = self._consume(TT.IDENTIFIER, 'Expected superclass method name')
+            return Super(keyword, method)
         elif keyword := self._match_one_of(TT.THIS):
             return This(keyword)
         elif var := self._match_one_of(TT.IDENTIFIER):

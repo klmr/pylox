@@ -7,7 +7,7 @@ from typing import Concatenate, ParamSpec, cast
 
 from .ast import (
     Assign, Binary, Block, Call, Class, Expr, ExprStmt, FunctionStmt, Get, Grouping, IfStmt, Literal, Logical,
-    PrintStmt, ReturnStmt, Set, Stmt, This, Unary, VarStmt, Variable, WhileStmt
+    PrintStmt, ReturnStmt, Set, Stmt, Super, This, Unary, VarStmt, Variable, WhileStmt
 )
 from .environment import Environment
 from .log import Logger, LoxRuntimeError
@@ -92,12 +92,20 @@ class LoxInstance:
 
 
 class LoxClass(LoxCallable):
-    def __init__(self, name: str, methods: dict[str, LoxFunction]) -> None:
+    def __init__(self, name: str, superclass: LoxClass, methods: dict[str, LoxFunction]) -> None:
         self.name = name
+        self.superclass = superclass
         self.methods = methods
 
     def find_method(self, name: str) -> LoxFunction | None:
-        return self.methods.get(name)
+        method = self.methods.get(name)
+
+        if method:
+            return method
+        elif self.superclass:
+            return self.superclass.find_method(name)
+        else:
+            return None
 
     @property
     def arity(self) -> int:
@@ -147,14 +155,29 @@ class Interpreter:
         match stmt:
             case Block(stmts):
                 self._execute_block(stmts, Environment(self._env))
-            case Class(name, methods):
+            case Class(name, superclass_name, methods):
+                if superclass_name:
+                    superclass = self._evaluate(superclass_name)
+                    if not isinstance(superclass, LoxClass):
+                        raise LoxRuntimeError(superclass_name.name, 'Superclass must name a class')
+                else:
+                    superclass = None
+
                 self._env.define(name.lexeme, None)
+
+                if superclass:
+                    self._env = Environment(self._env)
+                    self._env.define('super', superclass)
 
                 defined_methods = {
                     method.name.lexeme: LoxFunction(method, self._env, method.name.lexeme == 'init')
                     for method in methods
                 }
-                cls = LoxClass(name.lexeme, defined_methods)
+                cls = LoxClass(name.lexeme, superclass, defined_methods)
+
+                if superclass:
+                    self._env = self._env.enclosing
+
                 self._env.assign(name, cls)
             case ExprStmt(expr):
                 self._evaluate(expr)
@@ -217,6 +240,16 @@ class Interpreter:
                 val = self._evaluate(value)
                 obj.set(name, val)
                 return val
+            case Super(keyword, method_name):
+                dist = self._locals[expr]
+                superclass = cast(LoxClass, self._env.get_at(dist, 'super'))
+                object = cast(LoxInstance, self._env.get_at(dist - 1, 'this'))
+
+                method = superclass.find_method(method_name.lexeme)
+
+                if not method:
+                    raise LoxRuntimeError(method_name, f'Undefined property \'{method_name.lexeme}\'')
+                return method.bind(object)
             case This(keyword):
                 return self._lookup_variable(keyword, expr)
             case Unary():
@@ -404,12 +437,12 @@ def native_fun(fun: Callable[Concatenate[Interpreter, P], object]) -> LoxCallabl
 
 
 @native_fun
-def _lox_clock(interpreter: Interpreter) -> object:
+def _lox_clock(interpreter: Interpreter) -> float:
     return time.time()
 
 
 @native_fun
-def _lox_printf(interpreter: Interpreter, format: str) -> object:
+def _lox_printf(interpreter: Interpreter, format: str) -> None:
     import re
 
     formatted = ''
@@ -420,4 +453,3 @@ def _lox_printf(interpreter: Interpreter, format: str) -> object:
             formatted += _stringify(interpreter.eval(split))
 
     print(formatted)
-    return None

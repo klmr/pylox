@@ -7,7 +7,7 @@ from .token import Token
 
 class Environment:
     def __init__(self, enclosing: Environment | None = None) -> None:
-        self._enclosing: Final = enclosing
+        self.enclosing: Final = enclosing
         self._bindings: Final[dict[str, object]] = {}
 
     def define(self, name: str, value: object) -> None:
@@ -17,8 +17,8 @@ class Environment:
         try:
             return self._bindings[name.lexeme]
         except KeyError:
-            if self._enclosing is not None:
-                return self._enclosing.get(name)
+            if self.enclosing is not None:
+                return self.enclosing.get(name)
             else:
                 raise LoxRuntimeError(name, f'Undefined variable \'{name.lexeme}\'')
 
@@ -28,8 +28,8 @@ class Environment:
     def assign(self, name: Token, value: object) -> None:
         if name.lexeme in self._bindings:
             self._bindings[name.lexeme] = value
-        elif self._enclosing is not None:
-            self._enclosing.assign(name, value)
+        elif self.enclosing is not None:
+            self.enclosing.assign(name, value)
         else:
             raise LoxRuntimeError(name, f'Undefined variable \'{name.lexeme}\'')
 
@@ -39,5 +39,5 @@ class Environment:
     def _ancestor(self, dist: int) -> Environment:
         env = self
         for _ in range(dist):
-            env = cast(Environment, env._enclosing)
+            env = cast(Environment, env.enclosing)
         return env

@@ -62,6 +62,11 @@ class Set(Expr):
     value: Expr
 
 
+class Super(Expr):
+    keyword: Token
+    method: Token
+
+
 class This(Expr):
     keyword: Token
 
@@ -86,6 +91,7 @@ class Block(Stmt):
 
 class Class(Stmt):
     name: Token
+    superclass: Variable | None
     methods: list[FunctionStmt]
 
 
@@ -143,6 +149,8 @@ def format_ast(expr: Expr | Stmt) -> str:
             return f'({op.lexeme} {format_ast(left)} {format_ast(right)})'
         case Set(object, name, value):
             return f'(= (. {format_ast(object)} {name.lexeme}) {format_ast(value)})'
+        case Super(_, method):
+            return f'(super {method.lexeme})'
         case This(_):
             return 'this'
         case Unary(op, x):
@@ -153,9 +161,10 @@ def format_ast(expr: Expr | Stmt) -> str:
         case Block(stmts):
             stmts_fmt = ' '.join(format_ast(stmt) for stmt in stmts)
             return f'({{ {stmts_fmt})'
-        case Class(name, methods):
+        case Class(name, superclass, methods):
+            super_fmt = format_ast(superclass) if superclass else '_'
             methods_fmt = ' '.join(format_ast(method) for method in methods)
-            return f'(class {name.lexeme} {methods_fmt})'
+            return f'(class {name.lexeme} {super_fmt} {methods_fmt})'
         case ExprStmt(e):
             return format_ast(e)
         case FunctionStmt(name, params, body):
